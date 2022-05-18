@@ -96,8 +96,8 @@ class HTRReader:
 
 if __name__ == "__main__":
 
-    doc_path = "data/3.jpg"
-    htr_reader = HTRReader(htr_model_path="saved_models/best_accuracy.pth")
+    doc_path = "data/good_data/3.jpg"
+    htr_reader = HTRReader(htr_model_path="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz.pth")
     words_list = htr_reader.get_text(doc_path)
     for line in words_list:
         print(line)

@@ -1,17 +1,17 @@
-""" a modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/test.py """
-
 import os
-import time
 import re
+import time
 
 import torch
-import torch.utils.data
 import torch.nn.functional as F
+import torch.utils.data
+from model.dataset import hierarchical_dataset, AlignCollate
 from nltk.metrics.distance import edit_distance
 
-from utils import CTCLabelConverter, AttnLabelConverter, Averager
-from dataset import hierarchical_dataset, AlignCollate
-from model import Model
+from model.model import Model
+from model.utils import CTCLabelConverter, AttnLabelConverter, Averager
+from utils import ModelOptions
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -62,7 +62,7 @@ def validation(model, criterion, evaluation_loader, converter, opt):
             else:
                 _, preds_index = preds.max(2)
             preds_str = converter.decode(preds_index.data, preds_size.data)
-        
+
         else:
             preds = model(image, text_for_pred, is_train=False)
             forward_time = time.time() - start_time
@@ -161,11 +161,9 @@ def test(opt):
     print('loading pretrained model from %s' % opt.saved_model)
     model.load_state_dict(torch.load(opt.saved_model, map_location=device))
     opt.exp_name = '_'.join(opt.saved_model.split('/')[1:])
-    # print(model)
 
     """ keep evaluation model and result logs """
     os.makedirs(f'./result/{opt.exp_name}', exist_ok=True)
-    os.system(f'cp {opt.saved_model} ./result/{opt.exp_name}/')
 
     """ setup loss """
     if 'CTC' in opt.Prediction:
@@ -184,12 +182,18 @@ def test(opt):
             shuffle=False,
             num_workers=int(opt.workers),
             collate_fn=AlignCollate_evaluation, pin_memory=True)
-        _, accuracy_by_best_model, norm_ED, predictions, _, _, _, _ = validation(
+        _, accuracy_by_best_model, norm_ED, _, _, _, _, _ = validation(
             model, criterion, evaluation_loader, converter, opt)
-
-        word_list = []
-        for pred in predictions:
-            pred = pred[:pred.find('[s]')]
-            word_list.append(pred)
         log.write(eval_data_log)
-    return word_list
+        print(f'Accuracy: {accuracy_by_best_model:0.8f}')
+        print(f'Norm ED: {norm_ED:0.8f}')
+
+        log.write(f'Accuracy: {accuracy_by_best_model:0.8f}\n')
+        log.write(f'Norm ED: {norm_ED:0.8f}\n')
+        log.close()
+
+
+if __name__ == '__main__':
+    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/iter_200000.pth")
+    opt.eval_data = "/Users/anastasiabogatenkova/work/htr/datasets/lmdb/test"
+    test(opt)

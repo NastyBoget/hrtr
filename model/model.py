@@ -16,10 +16,10 @@ limitations under the License.
 
 import torch.nn as nn
 
-from modules.transformation import TPS_SpatialTransformerNetwork
-from modules.feature_extraction import VGG_FeatureExtractor, RCNN_FeatureExtractor, ResNet_FeatureExtractor
-from modules.sequence_modeling import BidirectionalLSTM
-from modules.prediction import Attention
+from model.modules.transformation import TPS_SpatialTransformerNetwork
+from model.modules.feature_extraction import VGG_FeatureExtractor, RCNN_FeatureExtractor, ResNet_FeatureExtractor
+from model.modules.sequence_modeling import BidirectionalLSTM
+from model.modules.prediction import Attention
 
 
 class Model(nn.Module):
@@ -93,7 +93,10 @@ class Model(nn.Module):
 
     def reset_output(self, charset: str) -> None:
         self.opt.character = charset
-        self.opt.num_class = len(charset) + 2  # TODO
+        if self.opt.Prediction == 'CTC':
+            self.opt.num_class = len(charset) + 1
+        else:
+            self.opt.num_class = len(charset) + 2  # TODO
         if self.opt.Prediction == 'CTC':
             self.Prediction = nn.Linear(self.SequenceModeling_output, self.opt.num_class)
         elif self.opt.Prediction == 'Attn':

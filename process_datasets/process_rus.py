@@ -1,7 +1,15 @@
 import os
 import shutil
+import zipfile
 
 import pandas as pd
+import wget
+
+from utils import check_valid_label
+
+name_prefix = "rus"
+
+# rus dataset https://www.kaggle.com/datasets/constantinwerner/cyrillic-handwriting-dataset
 
 
 def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None:
@@ -12,7 +20,18 @@ def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None
     :param gt_file: name of the groundtruth file
     :return:
     """
-    name_prefix = "rus"
+
+    data_url = "https://at.ispras.ru/owncloud/index.php/s/F6QwV1CY5ExbbbH/download"
+    root = os.path.join(data_dir, name_prefix)
+    os.makedirs(root)
+    archive = os.path.join(root, "archive.zip")
+    print(f"Downloading {name_prefix} dataset...")
+    wget.download(data_url, archive)
+    with zipfile.ZipFile(archive, 'r') as zip_ref:
+        zip_ref.extractall(root)
+    data_dir = root
+    print("Dataset downloaded")
+
     train_df = pd.read_csv(os.path.join(data_dir, "train.tsv"), sep="\t", names=["path", "word"])
     test_df = pd.read_csv(os.path.join(data_dir, "test.tsv"), sep="\t", names=["path", "word"])
 
@@ -20,7 +39,10 @@ def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None
     train_df["path"] = f"{img_dir}/" + name_prefix + "train" + train_df.path
 
     result_df = pd.concat([test_df, train_df], ignore_index=True)
+    result_df["valid"] = result_df.apply(lambda row: check_valid_label(row[1]), axis=1)
+    result_df = result_df[result_df.valid].drop(["valid"], axis=1)
     result_df.to_csv(os.path.join(out_dir, gt_file), sep="\t", index=False, header=False)
+    print(f"{name_prefix} dataset length: {result_df.shape[0]}")
 
     for img_dir_name in ("train", "test"):
         current_img_dir = os.path.join(data_dir, img_dir_name)
@@ -28,3 +50,14 @@ def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None
         for img_name in os.listdir(current_img_dir):
             new_img_name = name_prefix + img_dir_name + img_name
             shutil.move(os.path.join(current_img_dir, img_name), os.path.join(destination_img_dir, new_img_name))
+    shutil.rmtree(root)
+
+
+if __name__ == "__main__":
+    data_dir = "../datasets"
+    out_dir = "rus_out"
+    os.makedirs(os.path.join(data_dir, out_dir, "img"), exist_ok=True)
+    process_rus(data_dir=data_dir,
+                out_dir=os.path.join(data_dir, out_dir),
+                img_dir="img",
+                gt_file=f"gt.txt")

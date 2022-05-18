@@ -1,6 +1,7 @@
 """ a modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/train.py """
 
 import os
+import shutil
 import sys
 import time
 import random
@@ -14,16 +15,14 @@ import torch.optim as optim
 import torch.utils.data
 import numpy as np
 
-from utils import CTCLabelConverter, CTCLabelConverterForBaiduWarpctc, AttnLabelConverter, Averager
-from dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
-from model import Model
+from model.utils import CTCLabelConverter, CTCLabelConverterForBaiduWarpctc, AttnLabelConverter, Averager
+from model.dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
+from model.model import Model
 from test import validation
-from pytorchtools import EarlyStopping
+from model.pytorchtools import EarlyStopping
+from utils import char_set
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-char_set = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' \
-           'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ' \
-           '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
 
 
 def train(opt):
@@ -31,8 +30,10 @@ def train(opt):
     if not opt.data_filtering_off:
         print('Filtering the images containing characters which are not in opt.character')
         print('Filtering the images whose label is longer than opt.batch_max_length')
-        # see https://github.com/clovaai/deep-text-recognition-benchmark/blob/6593928855fb7abb999a99f428b3e4477d4ae356/dataset.py#L130
 
+    old_set = opt.character
+    opt.character = char_set
+    
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
     train_dataset = Batch_Balanced_Dataset(opt)
@@ -50,7 +51,11 @@ def train(opt):
     log.write('-' * 80 + '\n')
     log.close()
 
-    opt.num_class = len(opt.character) + 2  # TODO
+    opt.character = old_set
+    if 'CTC' in opt.Prediction:
+        opt.num_class = len(opt.character) + 1
+    else:
+        opt.num_class = len(opt.character) + 2  # TODO
 
     if opt.rgb:
         opt.input_channel = 3
@@ -75,18 +80,21 @@ def train(opt):
             continue
 
     # data parallel for multi-GPU
-    model = torch.nn.DataParallel(model).to(device)
-    model.train()
+    model = torch.nn.DataParallel(model)
     if opt.saved_model != '':
         print(f'loading pretrained model from {opt.saved_model}')
         if opt.FT:
             model.load_state_dict(torch.load(opt.saved_model, map_location=device), strict=False)
         else:
             model.load_state_dict(torch.load(opt.saved_model))
-    print("Model:")
+
+    if opt.lang == "rus":
+        model.module.reset_output(charset=char_set)
+        opt.character = char_set
+
+    model.train()
+    model = model.to(device)
     print(model)
-    model.module.reset_output(charset=char_set)
-    opt.character = char_set
     """ model configuration """
     if 'CTC' in opt.Prediction:
         if opt.baiduCTC:
@@ -95,7 +103,6 @@ def train(opt):
             converter = CTCLabelConverter(opt.character)
     else:
         converter = AttnLabelConverter(opt.character)
-
 
     """ setup loss """
     if 'CTC' in opt.Prediction:
@@ -128,7 +135,6 @@ def train(opt):
     print(optimizer)
 
     """ final options """
-    # print(opt)
     with open(f'./saved_models/{opt.exp_name}/opt.txt', 'a') as opt_file:
         opt_log = '------------ Options -------------\n'
         args = vars(opt)
@@ -258,16 +264,10 @@ def train(opt):
                 # early_stopping needs the validation loss to check if it has decreased, 
                 # and if it has, it will make a checkpoint of the current model
                 early_stopping(valid_loss, model, valid_log, valid_log_fname)
-                if early_stopping.early_stop:
-                    # print("Early stopping")
-                    early_stopping.log("Early stopping", valid_log_fname)
-                    # sys.exit()
-                
                 epoch += 1
-                
               
         # save model per 1e+5 iter.
-        if (iteration + 1) % 1e+5 == 0:
+        if (iteration + 1) % 5e+4 == 0:
             torch.save(
                 model.state_dict(), f'./saved_models/{opt.exp_name}/iter_{iteration+1}.pth')
 
@@ -279,6 +279,7 @@ def train(opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--lang', type=str, help='language of the loaded model', default='en')
     parser.add_argument('--exp_name', help='Where to store logs and models')
     parser.add_argument('--train_data', required=True, help='path to training dataset')
     parser.add_argument('--valid_data', required=True, help='path to validation dataset')
@@ -331,17 +332,15 @@ if __name__ == '__main__':
     if not opt.exp_name:
         opt.exp_name = f'{opt.Transformation}-{opt.FeatureExtraction}-{opt.SequenceModeling}-{opt.Prediction}'
         opt.exp_name += f'-Seed{opt.manualSeed}'
-        # print(opt.exp_name)
 
-    os.makedirs(f'./saved_models/{opt.exp_name}', exist_ok=True)
+    shutil.rmtree(f'./saved_models/{opt.exp_name}')
+    os.makedirs(f'./saved_models/{opt.exp_name}')
 
     """ vocab / character number configuration """
-    if opt.sensitive:
-        # opt.character += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    if opt.sensitive and opt.lang == "en":
         opt.character = string.printable[:-6]  # same with ASTER setting (use 94 char).
 
     """ Seed and GPU setting """
-    # print("Random Seed: ", opt.manualSeed)
     random.seed(opt.manualSeed)
     np.random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
@@ -350,7 +349,6 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()
-    # print('device count', opt.num_gpu)
     if opt.num_gpu > 1:
         print('------ Use multi-GPU setting ------')
         print('if you stuck too long time with multi-GPU setting, try to set --workers 0')
@@ -358,15 +356,4 @@ if __name__ == '__main__':
         opt.workers = opt.workers * opt.num_gpu
         opt.batch_size = opt.batch_size * opt.num_gpu
 
-        """ previous version
-        print('To equlize batch stats to 1-GPU setting, the batch_size is multiplied with num_gpu and multiplied batch_size is ', opt.batch_size)
-        opt.batch_size = opt.batch_size * opt.num_gpu
-        print('To equalize the number of epochs to 1-GPU setting, num_iter is divided with num_gpu by default.')
-        If you dont care about it, just commnet out these line.)
-        opt.num_iter = int(opt.num_iter / opt.num_gpu)
-        """
-
-    # python3 train.py --train_data ../datasets/lmdb/train --valid_data ../datasets/lmdb/val --select_data "/" \
-    # --batch_ratio 1 --FT --manualSeed 1 --Transformation TPS --FeatureExtraction ResNet --SequenceModeling BiLSTM \
-    # --Prediction Attn --saved_model ../saved_models/AttentionHTR-General-sensitive.pth --sensitive
     train(opt)

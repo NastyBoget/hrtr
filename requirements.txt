@@ -1,8 +1,8 @@
 lmdb==1.3.0
 natsort==8.1.0
-nltk==3.7
+nltk==3.6.7
 opencv-python==4.5.5.64
-pillow==9.0.1
+pillow
 python-doctr==0.5.1
 requests==2.27.1
 scikit-learn==1.0.2

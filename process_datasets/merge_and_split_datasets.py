@@ -1,7 +1,4 @@
 """
-rus dataset https://www.kaggle.com/datasets/constantinwerner/cyrillic-handwriting-dataset
-rus_kz dataset https://drive.google.com/drive/folders/1zOAOD_E7FWW9NrRAXSci0zmk30yqJS4o
-
 initial structure       result structure
 ================================================
 
@@ -38,16 +35,17 @@ datasets_handlers = dict(
 )
 
 
-def merge_datasets(data_dir: str, out_dir: str) -> None:
+def merge_datasets(data_dir: str, img_dir: str, out_dir: str) -> None:
     """
     :param data_dir: full path to datasets directory
+    :param img_dir: name of the directory with images
     :param out_dir: name of out directory e.g. merged
     :return:
     """
     for i, (dataset_dir, handler) in enumerate(datasets_handlers.items()):
-        handler(data_dir=os.path.join(data_dir, dataset_dir),
+        handler(data_dir=data_dir,
                 out_dir=os.path.join(data_dir, out_dir),
-                img_dir="img",
+                img_dir=img_dir,
                 gt_file=f"gt{i}.txt")
 
 
@@ -75,6 +73,7 @@ def split_datasets(data_dir: str, out_dir: str, test_size: float = 0.3) -> None:
 if __name__ == "__main__":
     data_dir = "../datasets"
     out_dir = "merged"
-    os.makedirs(os.path.join(data_dir, out_dir, "img"), exist_ok=True)
-    merge_datasets(data_dir, out_dir)
+    img_dir = "img"
+    os.makedirs(os.path.join(data_dir, out_dir, img_dir), exist_ok=True)
+    merge_datasets(data_dir, img_dir, out_dir)
     split_datasets(data_dir, out_dir)
