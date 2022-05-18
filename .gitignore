@@ -1,0 +1,9 @@
+# Specify filepatterns you want git to ignore.
+*.idea
+*.ipynb_checkpoints*
+*__pycache__*
+*.DS_Store
+*data/*
+datasets/*
+*saved_models/*
+result/*
