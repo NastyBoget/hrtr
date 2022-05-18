@@ -2,11 +2,13 @@ import os
 from typing import List
 
 import cv2
+import numpy as np
 import torch
 from PIL import Image
 from doctr.models import detection_predictor
 from tqdm import tqdm
 
+from lines_recognition import recognize_lines
 from model.dataset import AlignCollate
 from model.model import Model
 from model.utils import AttnLabelConverter, CTCLabelConverter
@@ -33,7 +35,7 @@ class HTRReader:
             self.label_converter = CTCLabelConverter(self.opt.character)
 
     @staticmethod
-    def _sort_bboxes(bboxes: List[tuple]) -> List[List[tuple]]:
+    def _sort_bboxes(img: np.ndarray, bboxes: List[tuple]) -> List[List[tuple]]:
         """
             x1, y1
             -------------------------
@@ -43,23 +45,36 @@ class HTRReader:
             -------------------------
                                 x2, y2
         """
-        lines_list = []
-        bboxes = sorted(bboxes, key=lambda x: x[1])
+        x_min, x_max = min([bbox[0] for bbox in bboxes]), max([bbox[2] for bbox in bboxes])
+        y_min, y_max = min([bbox[1] for bbox in bboxes]), max([bbox[3] for bbox in bboxes])
+        line_separators = recognize_lines(img[y_min:y_max, x_min:x_max], t=0.6)
+        if len(line_separators) == 0:
+            return [bboxes]
+        lines_dict = {}
+        if line_separators[0] > 0:
+            lines_dict[(y_min, y_min + line_separators[0])] = []
+        for ind in range(len(line_separators) - 1):
+            lines_dict[(y_min + line_separators[ind], y_min + line_separators[ind + 1])] = []
+        if y_min + line_separators[-1] < y_max:
+            lines_dict[(y_min + line_separators[-1], y_max)] = []
 
         for bbox in bboxes:
-            if len(lines_list) == 0:
-                lines_list.append([bbox])
-                continue
-            iou_threshold = 0.4
-            prev_bbox = lines_list[-1][-1]
-            min_y1, max_y1 = min(bbox[1], prev_bbox[1]), max(bbox[1], prev_bbox[1])
-            min_y2, max_y2 = min(bbox[3], prev_bbox[3]), max(bbox[3], prev_bbox[3])
-            threshold = (min_y2 - max_y1) / (max_y2 - min_y1)
-            if threshold >= iou_threshold:
-                lines_list[-1].append(bbox)
-            else:
-                lines_list.append([bbox])
-        lines_list = [sorted(line) for line in lines_list]
+            max_iou, line_key = 0, None
+            for y1, y2 in lines_dict.keys():
+                min_y1, max_y1 = min(bbox[1], y1), max(bbox[1], y1)
+                min_y2, max_y2 = min(bbox[3], y2), max(bbox[3], y2)
+                iou = (min_y2 - max_y1) / (max_y2 - min_y1)
+                if iou > max_iou:
+                    max_iou = iou
+                    line_key = (y1, y2)
+            assert(line_key is not None)
+            lines_dict[line_key].append(bbox)
+
+        lines_list = []
+        for key in sorted(lines_dict.keys()):
+            value = lines_dict[key]
+            if len(value) > 0:
+                lines_list.append(sorted(value))
 
         return lines_list
 
@@ -68,7 +83,7 @@ class HTRReader:
         out = self.model([im])
         h, w, _ = im.shape
         bboxes = [(int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h)) for box in out[0]]
-        bboxes = self._sort_bboxes(bboxes)
+        bboxes = self._sort_bboxes(im, bboxes)
         return bboxes
 
     def _recognize_word(self, img: Image.Image) -> str:

@@ -26,11 +26,13 @@ class CTCLabelConverter(object):
             text: text index for CTCLoss. [batch_size, batch_max_length]
             length: length of each text. [batch_size]
         """
-        length = [len(s) for s in text]
+        length = [min(len(s), batch_max_length) for s in text]
 
         # The index used for padding (=0) would not affect the CTC loss calculation.
         batch_text = torch.LongTensor(len(text), batch_max_length).fill_(0)
         for i, t in enumerate(text):
+            if len(t) > batch_max_length:
+                t = t[:batch_max_length]
             text = list(t)
             text = [self.dict[char] for char in text]
             batch_text[i][:len(text)] = torch.LongTensor(text)
@@ -125,7 +127,7 @@ class AttnLabelConverter(object):
                 text[:, 0] is [GO] token and text is padded with [GO] token after [s] token.
             length : the length of output of attention decoder, which count [s] token also. [3, 7, ....] [batch_size]
         """
-        length = [len(s) + 1 for s in text]  # +1 for [s] at end of sentence.
+        length = [min(len(s), batch_max_length) + 1 for s in text]  # +1 for [s] at end of sentence.
         # batch_max_length = max(length) # this is not allowed for multi-gpu setting
         batch_max_length += 1
         # additional +1 for [GO] at first step. batch_text is padded with [GO] token after [s] token.

@@ -194,6 +194,7 @@ def test(opt):
 
 
 if __name__ == '__main__':
-    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth")
+    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/TPS-ResNet-BiLSTM-CTC-Seed1-Rus-Kz-Synth.pth",
+                       Prediction="CTC")
     opt.eval_data = "/Users/anastasiabogatenkova/work/htr/datasets/lmdb/rus_kz/test"
     test(opt)
