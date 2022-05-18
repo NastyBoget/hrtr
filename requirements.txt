@@ -5,7 +5,7 @@ opencv-python==4.5.5.64
 pillow
 python-doctr==0.5.1
 requests==2.27.1
-scikit-learn==1.0.2
+scikit-learn==0.24.2
 six==1.16.0
 torch==1.9.0
 torchvision==0.10.0

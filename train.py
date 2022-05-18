@@ -1,5 +1,4 @@
 """ a modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/train.py """
-
 import os
 import shutil
 import sys
@@ -23,6 +22,7 @@ from model.pytorchtools import EarlyStopping
 from utils import char_set
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# Saved models for English https://drive.google.com/drive/folders/1h6edewgRUTJPzI81Mn0eSsqItnk9RMeO
 
 
 def train(opt):
@@ -88,7 +88,7 @@ def train(opt):
         else:
             model.load_state_dict(torch.load(opt.saved_model))
 
-    if opt.lang == "rus":
+    if opt.lang == "en":
         model.module.reset_output(charset=char_set)
         opt.character = char_set
 
@@ -284,9 +284,9 @@ if __name__ == '__main__':
     parser.add_argument('--train_data', required=True, help='path to training dataset')
     parser.add_argument('--valid_data', required=True, help='path to validation dataset')
     parser.add_argument('--manualSeed', type=int, default=1111, help='for random seed setting')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=0)
+    parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
     parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
-    parser.add_argument('--num_iter', type=int, default=300000, help='number of iterations to train for')
+    parser.add_argument('--num_iter', type=int, default=300180, help='number of iterations to train for')
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval between each validation')
     parser.add_argument('--saved_model', default='', help="path to model to continue training")
     parser.add_argument('--FT', action='store_true', help='whether to do fine-tuning')
@@ -333,7 +333,8 @@ if __name__ == '__main__':
         opt.exp_name = f'{opt.Transformation}-{opt.FeatureExtraction}-{opt.SequenceModeling}-{opt.Prediction}'
         opt.exp_name += f'-Seed{opt.manualSeed}'
 
-    shutil.rmtree(f'./saved_models/{opt.exp_name}')
+    if os.path.isdir(f'./saved_models/{opt.exp_name}'):
+        shutil.rmtree(f'./saved_models/{opt.exp_name}')
     os.makedirs(f'./saved_models/{opt.exp_name}')
 
     """ vocab / character number configuration """

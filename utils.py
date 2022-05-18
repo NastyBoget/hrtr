@@ -29,7 +29,7 @@ class ModelOptions:
                  rgb: bool = False,
                  character: str = char_set,
                  sensitive: bool = True,
-                 PAD: bool = True,
+                 PAD: bool = False,
                  data_filtering_off: bool = True,
                  baiduCTC: bool = False,
                  num_fiducial: int = 20,

@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import cv2
@@ -5,10 +6,11 @@ import torch
 from PIL import Image
 from doctr.io import DocumentFile
 from doctr.models import detection_predictor
+from tqdm import tqdm
 
 from model.dataset import AlignCollate
 from model.model import Model
-from model.utils import AttnLabelConverter
+from model.utils import AttnLabelConverter, CTCLabelConverter
 from utils import ModelOptions
 
 
@@ -20,13 +22,16 @@ class HTRReader:
     def __init__(self, htr_model_path: str) -> None:
         self.model = detection_predictor(arch='db_resnet50', pretrained=True).eval()
 
-        opt = ModelOptions(saved_model=htr_model_path, batch_size=1)
-        self.htr_model = torch.nn.DataParallel(Model(opt)).to(device)
-        self.htr_model.load_state_dict(torch.load(opt.saved_model, map_location=device))
+        self.opt = ModelOptions(saved_model=htr_model_path, batch_size=1, Prediction="CTC")
+        self.htr_model = torch.nn.DataParallel(Model(self.opt)).to(device)
+        self.htr_model.load_state_dict(torch.load(self.opt.saved_model, map_location=device))
         self.htr_model.eval()
 
-        self.align_converter = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
-        self.label_converter = AttnLabelConverter(opt.character)
+        self.align_converter = AlignCollate(imgH=self.opt.imgH, imgW=self.opt.imgW, keep_ratio_with_pad=self.opt.PAD)
+        if self.opt.Prediction == "Attn":
+            self.label_converter = AttnLabelConverter(self.opt.character)
+        else:
+            self.label_converter = CTCLabelConverter(self.opt.character)
 
     @staticmethod
     def _sort_bboxes(bboxes: List[tuple]) -> List[List[tuple]]:
@@ -72,11 +77,17 @@ class HTRReader:
         batch_max_length = 25
         text_for_pred = torch.LongTensor(1, batch_max_length + 1).fill_(0).to(device)
         img_tensor, label_tensor = self.align_converter([(img, text_for_pred)])
-        preds = self.htr_model(img_tensor, label_tensor, is_train=False)
-        preds_size = torch.IntTensor([preds.size(1)] * 1)
+        if self.opt.Prediction == "Attn":
+            preds = self.htr_model(img_tensor, label_tensor, is_train=False)
+            preds_size = torch.IntTensor([preds.size(1)] * 1)
+            _, preds_index = preds.max(2)
+            preds_str = self.label_converter.decode(preds_index.data, preds_size.data)
+            preds_str = [pred[:pred.find('[s]')] for pred in preds_str]
+            return " ".join(preds_str)
+        preds = self.htr_model(img_tensor, label_tensor)
+        preds_size = torch.IntTensor([preds.size(1)])
         _, preds_index = preds.max(2)
         preds_str = self.label_converter.decode(preds_index.data, preds_size.data)
-        preds_str = [pred[:pred.find('[s]')] for pred in preds_str]
         return " ".join(preds_str)
 
     def get_text(self, doc_name: str) -> List[List[str]]:
@@ -95,9 +106,15 @@ class HTRReader:
 
 
 if __name__ == "__main__":
-
-    doc_path = "data/good_data/3.jpg"
-    htr_reader = HTRReader(htr_model_path="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz.pth")
-    words_list = htr_reader.get_text(doc_path)
-    for line in words_list:
-        print(line)
+    htr_reader = HTRReader(htr_model_path="saved_models/TPS-ResNet-BiLSTM-CTC-Seed1-Rus-Kz.pth")
+    data_dir = "data/good_data"
+    with open(os.path.join(data_dir, "out.txt"), "w") as f:
+        for file_name in tqdm(os.listdir(data_dir)):
+            if not file_name.endswith(".jpg"):
+                continue
+            doc_path = os.path.join(data_dir, file_name)
+            words_list = htr_reader.get_text(doc_path)
+            print(file_name, file=f)
+            for line in words_list:
+                print(" ".join(line), file=f)
+            print(file=f)
