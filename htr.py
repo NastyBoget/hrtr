@@ -4,7 +4,6 @@ from typing import List
 import cv2
 import torch
 from PIL import Image
-from doctr.io import DocumentFile
 from doctr.models import detection_predictor
 from tqdm import tqdm
 
@@ -19,10 +18,10 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class HTRReader:
 
-    def __init__(self, htr_model_path: str) -> None:
+    def __init__(self, opt: ModelOptions) -> None:
         self.model = detection_predictor(arch='db_resnet50', pretrained=True).eval()
 
-        self.opt = ModelOptions(saved_model=htr_model_path, batch_size=1, Prediction="CTC")
+        self.opt = opt
         self.htr_model = torch.nn.DataParallel(Model(self.opt)).to(device)
         self.htr_model.load_state_dict(torch.load(self.opt.saved_model, map_location=device))
         self.htr_model.eval()
@@ -65,9 +64,8 @@ class HTRReader:
         return lines_list
 
     def _get_words_bboxes(self, doc_name: str) -> List[List[tuple]]:
-        single_img_doc = DocumentFile.from_images(doc_name)
-        out = self.model(single_img_doc)
         im = cv2.imread(doc_name)
+        out = self.model([im])
         h, w, _ = im.shape
         bboxes = [(int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h)) for box in out[0]]
         bboxes = self._sort_bboxes(bboxes)
@@ -106,7 +104,9 @@ class HTRReader:
 
 
 if __name__ == "__main__":
-    htr_reader = HTRReader(htr_model_path="saved_models/TPS-ResNet-BiLSTM-CTC-Seed1-Rus-Kz.pth")
+    opt = ModelOptions(saved_model="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth",
+                       batch_size=1, Prediction="Attn")
+    htr_reader = HTRReader(opt)
     data_dir = "data/good_data"
     with open(os.path.join(data_dir, "out.txt"), "w") as f:
         for file_name in tqdm(os.listdir(data_dir)):

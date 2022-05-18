@@ -145,3 +145,4 @@ if __name__ == "__main__":
         merged_df = pd.concat(df_list, ignore_index=True)
         merged_df.to_csv(os.path.join(dataset_dir, "gt.txt"), sep="\t", index=False, header=False)
     # 27 33 34 37 14 11 20 TODO
+    # TODO заменить кавычки

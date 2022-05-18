@@ -194,6 +194,6 @@ def test(opt):
 
 
 if __name__ == '__main__':
-    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/iter_200000.pth")
-    opt.eval_data = "/Users/anastasiabogatenkova/work/htr/datasets/lmdb/test"
+    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth")
+    opt.eval_data = "/Users/anastasiabogatenkova/work/htr/datasets/lmdb/rus_kz/test"
     test(opt)
