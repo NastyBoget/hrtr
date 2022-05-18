@@ -4,6 +4,31 @@ import cv2
 import numpy as np
 
 
+def find_lines_separators(b: List[Tuple[int, int]], h: np.ndarray) -> List[int]:
+    b = sorted(b)
+    s = []
+    for i in range(len(b) - 1):
+        x1, x2 = b[i]
+        x1_next, x2_next = b[i + 1]
+        if x2 < x1_next:
+            s.append(x2 + np.argmin(h[x2:x1_next]))
+    return s
+
+
+def find_interval(h: np.ndarray, n: int, t_a: float, x_i: int) -> Tuple[int, int]:
+    x1 = x_i
+    while x1 > 0:
+        if h[x1] < t_a:
+            break
+        x1 -= 1
+    x2 = x_i
+    while x2 < n - 1:
+        if h[x2] < t_a:
+            break
+        x2 += 1
+    return x1, x2
+
+
 def recognize_lines(img: np.ndarray, t: float = 0.3) -> List[int]:
     """
     n - height of the image in pixels
@@ -38,29 +63,38 @@ def recognize_lines(img: np.ndarray, t: float = 0.3) -> List[int]:
     return s
 
 
-def find_lines_separators(b: List[Tuple[int, int]], h: np.ndarray):
-    b = sorted(b)
-    s = []
-    for i in range(len(b) - 1):
-        x1, x2 = b[i]
-        x1_next, x2_next = b[i + 1]
-        if x2 < x1_next:
-            s.append(x2 + np.argmin(h[x2:x1_next]))
-    return s
+def sort_bboxes(img: np.ndarray, bboxes: List[tuple]) -> List[List[tuple]]:
+    x_min, x_max = min([bbox[0] for bbox in bboxes]), max([bbox[2] for bbox in bboxes])
+    y_min, y_max = min([bbox[1] for bbox in bboxes]), max([bbox[3] for bbox in bboxes])
+    line_separators = recognize_lines(img[y_min:y_max, x_min:x_max])
+    if len(line_separators) == 0:
+        return [bboxes]
+    lines_dict = {}
+    if line_separators[0] > 0:
+        lines_dict[(y_min, y_min + line_separators[0])] = []
+    for ind in range(len(line_separators) - 1):
+        lines_dict[(y_min + line_separators[ind], y_min + line_separators[ind + 1])] = []
+    if y_min + line_separators[-1] < y_max:
+        lines_dict[(y_min + line_separators[-1], y_max)] = []
 
+    for bbox in bboxes:
+        max_iou, line_key = 0, None
+        for y1, y2 in lines_dict.keys():
+            min_y1, max_y1 = min(bbox[1], y1), max(bbox[1], y1)
+            min_y2, max_y2 = min(bbox[3], y2), max(bbox[3], y2)
+            iou = (min_y2 - max_y1) / (max_y2 - min_y1)
+            if iou > max_iou:
+                max_iou = iou
+                line_key = (y1, y2)
+        assert (line_key is not None)
+        lines_dict[line_key].append(bbox)
 
-def find_interval(h: np.ndarray, n: int, t_a: float, x_i: int) -> Tuple[int, int]:
-    x1 = x_i
-    while x1 > 0:
-        if h[x1] < t_a:
-            break
-        x1 -= 1
-    x2 = x_i
-    while x2 < n - 1:
-        if h[x2] < t_a:
-            break
-        x2 += 1
-    return x1, x2
+    lines_list = []
+    for key in sorted(lines_dict.keys()):
+        value = lines_dict[key]
+        if len(value) > 0:
+            lines_list.append(sorted(value))
+    return lines_list
 
 
 if __name__ == "__main__":

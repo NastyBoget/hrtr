@@ -8,6 +8,7 @@ from PIL import Image
 from doctr.models import detection_predictor
 from tqdm import tqdm
 
+from lines_segmentation.lines_seg_rule_based import sort_bboxes
 from model.dataset import AlignCollate
 from model.model import Model
 from model.utils import AttnLabelConverter, CTCLabelConverter
@@ -33,41 +34,12 @@ class HTRReader:
         else:
             self.label_converter = CTCLabelConverter(self.opt.character)
 
-    @staticmethod
-    def _sort_bboxes(bboxes: List[tuple]) -> List[List[tuple]]:
-        """
-            x1, y1
-            -------------------------
-            |                       |
-            |         Bbox          |
-            |                       |
-            -------------------------
-                                x2, y2
-        """
-        lines_list = []
-        bboxes = sorted(bboxes, key=lambda x: x[1])
-        for bbox in bboxes:
-            if len(lines_list) == 0:
-                lines_list.append([bbox])
-                continue
-            iou_threshold = 0.4
-            prev_bbox = lines_list[-1][-1]
-            min_y1, max_y1 = min(bbox[1], prev_bbox[1]), max(bbox[1], prev_bbox[1])
-            min_y2, max_y2 = min(bbox[3], prev_bbox[3]), max(bbox[3], prev_bbox[3])
-            threshold = (min_y2 - max_y1) / (max_y2 - min_y1)
-            if threshold >= iou_threshold:
-                lines_list[-1].append(bbox)
-            else:
-                lines_list.append([bbox])
-        lines_list = [sorted(line) for line in lines_list]
-        return lines_list
-
     def _get_words_bboxes(self, doc_name: str) -> List[List[tuple]]:
         im = cv2.imread(doc_name)
         out = self.model([im])
         h, w, _ = im.shape
         bboxes = [(int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h)) for box in out[0]]
-        bboxes = self._sort_bboxes(bboxes)
+        bboxes = sort_bboxes(bboxes)
         return bboxes
 
     def _recognize_word(self, img: Image.Image) -> str:
