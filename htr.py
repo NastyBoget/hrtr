@@ -1,4 +1,3 @@
-import json
 import os
 from typing import List
 
@@ -6,9 +5,10 @@ import cv2
 import torch
 from PIL import Image
 from doctr.models import detection_predictor
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from lines_segmentation.lines_seg_rule_based import sort_bboxes
+from lines_segmentation.lines_seg_projections import sort_bboxes
 from model.dataset import AlignCollate
 from model.model import Model
 from model.utils import AttnLabelConverter, CTCLabelConverter
@@ -39,7 +39,7 @@ class HTRReader:
         out = self.model([im])
         h, w, _ = im.shape
         bboxes = [(int(box[0] * w), int(box[1] * h), int(box[2] * w), int(box[3] * h)) for box in out[0]]
-        bboxes = sort_bboxes(bboxes)
+        bboxes = sort_bboxes(im, bboxes)
         return bboxes
 
     def _recognize_word(self, img: Image.Image) -> str:
@@ -74,22 +74,43 @@ class HTRReader:
         return lines_list
 
 
+def save_results_img(in_dir: str, out_dir: str, reader: HTRReader) -> None:
+    os.makedirs(out_dir, exist_ok=True)
+    for file_name in tqdm(os.listdir(in_dir)):
+        if not file_name.endswith(".jpg"):
+            continue
+        words_list = reader.get_text(os.path.join(in_dir, file_name))
+        words_list = [" ".join(line) for line in words_list]
+        words_str = "\n".join(words_list)
+        fig, ax = plt.subplots(1, 1)
+        fig.set_figheight(15)
+        fig.set_figwidth(15)
+        ax.set_title(words_str)
+        ax.axis('off')
+        img = cv2.imread(os.path.join(in_dir, file_name))
+        ax.imshow(img)
+        fig.savefig(os.path.join(out_dir, file_name))
+        plt.close(fig)
+
+
 if __name__ == "__main__":
+    save_results = False
     opt = ModelOptions(saved_model="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth",
                        batch_size=1, Prediction="Attn")
     htr_reader = HTRReader(opt)
-    data_dir = "data/good_data"
 
-    result = {}
-
-    for file_name in tqdm(os.listdir(data_dir)):
-        if not file_name.endswith(".jpg"):
-            continue
-        doc_path = os.path.join(data_dir, file_name)
-        words_list = htr_reader.get_text(doc_path)
-        words_list = [" ".join(line) for line in words_list]
-        words_str = "\n".join(words_list)
-        result[file_name] = words_str
-
-    with open(os.path.join(data_dir, "pred.json"), "w") as f:
-        json.dump(result, f)
+    if save_results:
+        save_results_img("data/lising", "data/result_lising", htr_reader)
+    else:
+        data_dir = "data/good_data"
+        result = {}
+        for file_name in tqdm(os.listdir(data_dir)):
+            if not file_name.endswith(".jpg"):
+                continue
+            print(file_name)
+            doc_path = os.path.join(data_dir, file_name)
+            words_list = htr_reader.get_text(doc_path)
+            words_list = [" ".join(line) for line in words_list]
+            words_str = "\n".join(words_list)
+            print(words_str)
+            print()
