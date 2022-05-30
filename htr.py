@@ -1,3 +1,4 @@
+import json
 import os
 from typing import List
 
@@ -102,15 +103,17 @@ if __name__ == "__main__":
     if save_results:
         save_results_img("data/lising", "data/result_lising", htr_reader)
     else:
-        data_dir = "data/good_data"
+        data_dir = "data/random_data"
         result = {}
+
         for file_name in tqdm(os.listdir(data_dir)):
             if not file_name.endswith(".jpg"):
                 continue
-            print(file_name)
             doc_path = os.path.join(data_dir, file_name)
             words_list = htr_reader.get_text(doc_path)
             words_list = [" ".join(line) for line in words_list]
             words_str = "\n".join(words_list)
-            print(words_str)
-            print()
+            result[file_name] = words_str
+
+        with open(os.path.join(data_dir, "pred.json"), "w") as f:
+            json.dump(result, f)

@@ -77,10 +77,12 @@ if __name__ == "__main__":
                     "ASCII_Uppercase_Chars", "Latin1_Special_Symbols", "Cyrillic", "AVG Accuracy"]]
 
     statistics = {}
-    data_dir = "../data/good_data"
+    data_type = "random_data"
+    model_type = "TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth"  # TODO
+    data_dir = f"../data/{data_type}"
     gt_file = "gt.json"
     pred_file = "pred.json"
-    dataset_name = "good_data"
+    dataset_name = data_type
 
     statistics = _init_statistics_by_dataset(statistics, dataset_name)
     with open(os.path.join(data_dir, pred_file)) as f:
@@ -122,7 +124,7 @@ if __name__ == "__main__":
         accs_common.append(row)
     table_common.add_rows(accs_common)
 
-    with open("TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth_result.txt", "w") as res_file:
+    with open(f"{data_type}/{model_type}_result.txt", "w") as res_file:
         res_file.write("Table 1 - Accuracy for each file\n")
         res_file.write(table_aacuracy_per_image.draw())
         res_file.write("\n\nTable 2 - AVG by each type of symbols:\n")
