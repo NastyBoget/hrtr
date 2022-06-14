@@ -1,43 +1,18 @@
-import sys
 import zipfile
 from argparse import ArgumentParser
 import os.path
 import time
-
-import cv2
-import numpy as np
 
 import torch
 import torchvision.models as models
 import torch.optim as optim
 import torch.nn as nn
 import wget
-from PIL import Image
 from torchvision import datasets, transforms
 from tqdm import tqdm
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from lines_segmentation.binarization import binarize  # noqa
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-class Binarization(object):
-    def __init__(self):
-        pass
-
-    def __call__(self, img: Image) -> Image:
-        """
-        :param img: (PIL): Image
-        :return: binarized image (PIL)
-        """
-        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        img = binarize(img)
-        return Image.fromarray(img)
-
-    def __repr__(self) -> str:
-        return self.__class__.__name__ + '()'
 
 
 def train(dataset_path: str, save_model_path: str) -> None:
@@ -46,13 +21,12 @@ def train(dataset_path: str, save_model_path: str) -> None:
     if not os.path.isdir(os.path.join(dataset_path, dataset_name)):
         os.makedirs(os.path.join(dataset_path), exist_ok=True)
         archive_name = os.path.join(dataset_path, dataset_name) + ".zip"
-        wget.download("https://at.ispras.ru/owncloud/index.php/s/Uy5EqN9FsqeIz8O/download", archive_name)
+        wget.download("https://at.ispras.ru/owncloud/index.php/s/RsLqoY9LyVTPwyQ/download", archive_name)
         with zipfile.ZipFile(archive_name, 'r') as zip_ref:
             zip_ref.extractall(dataset_path)
     dataset_path = os.path.join(dataset_path, dataset_name)
 
     transforms_list = transforms.Compose([
-        Binarization(),
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
     ])
