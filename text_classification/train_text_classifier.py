@@ -1,3 +1,5 @@
+import sys
+import zipfile
 from argparse import ArgumentParser
 import os.path
 import time
@@ -9,10 +11,14 @@ import torch
 import torchvision.models as models
 import torch.optim as optim
 import torch.nn as nn
+import wget
 from PIL import Image
 from torchvision import datasets, transforms
+from tqdm import tqdm
 
-from lines_segmentation.binarization import binarize
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from lines_segmentation.binarization import binarize  # noqa
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -35,6 +41,15 @@ class Binarization(object):
 
 
 def train(dataset_path: str, save_model_path: str) -> None:
+    os.makedirs(save_model_path, exist_ok=True)
+    dataset_name = "text_classification_split"
+    if not os.path.isdir(os.path.join(dataset_path, dataset_name)):
+        os.makedirs(os.path.join(dataset_path), exist_ok=True)
+        archive_name = os.path.join(dataset_path, dataset_name) + ".zip"
+        wget.download("https://at.ispras.ru/owncloud/index.php/s/Uy5EqN9FsqeIz8O/download", archive_name)
+        with zipfile.ZipFile(archive_name, 'r') as zip_ref:
+            zip_ref.extractall(dataset_path)
+    dataset_path = os.path.join(dataset_path, dataset_name)
 
     transforms_list = transforms.Compose([
         Binarization(),
@@ -47,8 +62,8 @@ def train(dataset_path: str, save_model_path: str) -> None:
 
     train_dataset = datasets.ImageFolder(os.path.join(dataset_path, train_dir_name), transforms_list)
     val_dataset = datasets.ImageFolder(os.path.join(dataset_path, val_dir_name), transforms_list)
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=12, shuffle=True)
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=12, shuffle=False)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=192, shuffle=True)
+    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=192, shuffle=False)
 
     print('Train dataset size:', len(train_dataset))
     print('Val dataset size:', len(val_dataset))
@@ -70,7 +85,7 @@ def train(dataset_path: str, save_model_path: str) -> None:
         model.train()
         running_loss = 0.
         running_corrects = 0
-        for i, (inputs, labels) in enumerate(train_dataloader):
+        for i, (inputs, labels) in tqdm(enumerate(train_dataloader)):
             inputs = inputs.to(device)
             labels = labels.to(device)
             optimizer.zero_grad()
@@ -85,7 +100,7 @@ def train(dataset_path: str, save_model_path: str) -> None:
         epoch_acc = running_corrects / len(train_dataset) * 100.
         print('[Train #{}] Loss: {:.4f} Acc: {:.4f}% Time: {:.4f}s'.format(epoch, epoch_loss, epoch_acc,
                                                                            time.time() - start_time))
-        torch.save(model.state_dict(), save_model_path)
+        torch.save(model.state_dict(), os.path.join(save_model_path, "text_classifier_resnet18.pth"))
 
         """ Testing Phase """
         model.eval()
@@ -110,3 +125,5 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument('--data_path', type=str, required=True, help='Path to the train and val datasets')
     parser.add_argument('--save_model_path', type=str, required=True, help='Where to save trained model')
+    args = parser.parse_args()
+    train(args.data_path, args.save_model_path)
