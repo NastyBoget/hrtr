@@ -1,16 +1,15 @@
-import zipfile
-from argparse import ArgumentParser
 import os.path
 import time
+import zipfile
+from argparse import ArgumentParser
 
 import torch
-import torchvision.models as models
-import torch.optim as optim
 import torch.nn as nn
+import torch.optim as optim
+import torchvision.models as models
 import wget
 from torchvision import datasets, transforms
 from tqdm import tqdm
-
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -97,7 +96,9 @@ def train(dataset_path: str, save_model_path: str) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--data_path', type=str, required=True, help='Path to the train and val datasets')
-    parser.add_argument('--save_model_path', type=str, required=True, help='Where to save trained model')
+    parser.add_argument('--data_path', type=str, required=True,
+                        help='Path to the directory with train and val datasets,'
+                             'the name of dataset is text_classification_split')
+    parser.add_argument('--save_model_path', type=str, required=True, help='Directory to save trained model')
     args = parser.parse_args()
     train(args.data_path, args.save_model_path)
