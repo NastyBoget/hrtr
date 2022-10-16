@@ -1,16 +1,5 @@
-Handwriting character recognition for Russian language
+Handwritten Russian text recognition
 ============
 
-Make dataset
--------
+Documentation will appear soon!
 
-```bash
-    python3 create_lmdb_dataset_rus.py
-```
-
-Train model
--------
-
-```bash
-    bash train_model.sh
-```
