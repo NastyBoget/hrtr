@@ -4,11 +4,26 @@ import zipfile
 
 import pandas as pd
 import wget
-
+from sklearn.model_selection import train_test_split
 
 name_prefix = "rus"
 
 # rus dataset https://www.kaggle.com/datasets/constantinwerner/cyrillic-handwriting-dataset
+
+
+def read_file(path: str) -> pd.DataFrame:
+    result = {"path": [], "word": []}
+    with open(path, 'r') as data:
+        datalist = data.readlines()
+
+    for line in datalist:
+        image_path, label = line.strip('\n').split('.png')
+        label = label.strip()
+        label.replace("\r", "")
+        label.replace("\t", " ")
+        result["path"].append(f"{image_path}.png")
+        result["word"].append(label)
+    return pd.DataFrame(result)
 
 
 def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None:
@@ -24,22 +39,34 @@ def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None
     root = os.path.join(data_dir, name_prefix)
     os.makedirs(root)
     archive = os.path.join(root, "archive.zip")
-    print(f"Downloading {name_prefix} dataset...")
+    print(f"\nDownloading {name_prefix} dataset...")
     wget.download(data_url, archive)
     with zipfile.ZipFile(archive, 'r') as zip_ref:
         zip_ref.extractall(root)
     data_dir = root
-    print("Dataset downloaded")
+    print("\nDataset downloaded")
 
-    train_df = pd.read_csv(os.path.join(data_dir, "train.tsv"), sep="\t", names=["path", "word"])
-    test_df = pd.read_csv(os.path.join(data_dir, "test.tsv"), sep="\t", names=["path", "word"])
+    train_df = read_file(os.path.join(data_dir, "train.tsv"))
+    test_df = read_file(os.path.join(data_dir, "test.tsv"))
+
+    char_set = set()
+    for _, row in train_df.iterrows():
+        char_set = char_set | set(row["word"])
+
+    for _, row in test_df.iterrows():
+        char_set = char_set | set(row["word"])
+    print(f"Rus char set: {repr(''.join(sorted(list(char_set))))}")
 
     test_df["path"] = f"{img_dir}/" + name_prefix + "test" + test_df.path
     train_df["path"] = f"{img_dir}/" + name_prefix + "train" + train_df.path
 
+    train_df, val_df = train_test_split(train_df, test_size=0.1, random_state=42)
+
     test_df.to_csv(os.path.join(out_dir, f"test_{gt_file}"), sep="\t", index=False, header=False)
-    test_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
+    val_df.to_csv(os.path.join(out_dir, f"val_{gt_file}"), sep="\t", index=False, header=False)
+    train_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
     print(f"{name_prefix}: train dataset length: {train_df.shape[0]}")
+    print(f"{name_prefix}: val dataset length: {val_df.shape[0]}")
     print(f"{name_prefix}: test dataset length: {test_df.shape[0]}")
 
     for img_dir_name in ("train", "test"):

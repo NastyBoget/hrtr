@@ -22,16 +22,22 @@ def process_synthetic(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -
     root = os.path.join(data_dir, name_prefix)
     os.makedirs(root, exist_ok=True)
     archive = os.path.join(root, "archive.zip")
-    print(f"Downloading {name_prefix} dataset...")
+    print(f"\nDownloading {name_prefix} dataset...")
     wget.download(data_url, archive)
     with zipfile.ZipFile(archive, 'r') as zip_ref:
         zip_ref.extractall(root)
     data_dir = os.path.join(root, "synthetic")
-    print("Dataset downloaded")
+    print("\nDataset downloaded")
 
     df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "word"])
+
+    char_set = set()
+    for _, row in df.iterrows():
+        char_set = char_set | set(row["word"])
+    print(f"Synthetic char set: {repr(''.join(sorted(list(char_set))))}")
+
     df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
-    print(f"{name_prefix} train dataset length: {df.shape[0]}")
+    print(f"{name_prefix}: train dataset length: {df.shape[0]}")
 
     destination_img_dir = os.path.join(out_dir, img_dir)
     current_img_dir = os.path.join(data_dir, "img")

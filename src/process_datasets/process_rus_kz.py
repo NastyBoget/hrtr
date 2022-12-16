@@ -25,12 +25,12 @@ def process_rus_kz(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> N
     root = os.path.join(data_dir, name_prefix)
     os.makedirs(root)
     archive = os.path.join(root, "archive.zip")
-    print(f"Downloading {name_prefix} dataset...")
+    print(f"\nDownloading {name_prefix} dataset...")
     wget.download(data_url, archive)
     with zipfile.ZipFile(archive, 'r') as zip_ref:
         zip_ref.extractall(root)
     data_dir = os.path.join(root, "HK_dataset")
-    print("Dataset downloaded")
+    print("\nDataset downloaded")
 
     ann_dir = os.path.join(data_dir, "ann")
     data_dict = {"path": [], "word": []}

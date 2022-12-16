@@ -1,18 +1,17 @@
 #!/bin/bash
 
-# sudo mount -o resvport -t nfs 10.10.10.224:/data ~/work/htr_copy
-
-DATA_DIR="datasets/lmdb"
+BASE_DIR="datasets"
+DATA_DIR="$BASE_DIR/lmdb"
+export PYTHONPATH=$PYTHONPATH:src
 
 if [ -d "$DATA_DIR" ]; then
   echo "Skip dataset creation"
 else
   echo "Try to create dataset"
-  python3 create_lmdb_dataset_rus.py
+  python3 src/process_datasets/create_lmdb_dataset_rus.py --out_dir $BASE_DIR --datasets_list rus
 fi
 
 
-
-python3 train.py --train_data $DATA_DIR/train --valid_data $DATA_DIR/val --select_data "/" \
+CUDA_VISIBLE_DEVICES=0 python3 src/train.py --train_data $DATA_DIR/train --valid_data $DATA_DIR/val --select_data "/" \
   --batch_ratio 1 --FT --manualSeed 1 --Transformation TPS --FeatureExtraction ResNet --SequenceModeling BiLSTM \
-  --Prediction CTC --saved_model saved_models/AttentionHTR-General-sensitive.pth --sensitive --lang en
+  --Prediction Attn --sensitive --lang rus --exp_name rus_synthetic --datasets_list rus

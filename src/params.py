@@ -3,9 +3,17 @@ import torch
 
 english_char_set = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
                    "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-russian_char_set = 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯабвгдежзийклмнопрстуфхцчшщьыъэюя0123456789.!"%(),-?:; '
+russian_synthetic_char_set = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+
+russian_char_set = ' !"%(),-./0123456789:;?[]abgnpvx«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё'
 
 russian_kazakh_char_set = ' !(),-.:;?HoАБВГДЕЖЗИЙКЛМНОПРСТУФХЧШЩЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёғҚқҮӨө–—…'
+
+charsets = dict(
+    rus=russian_char_set,
+    rus_kz=russian_kazakh_char_set,
+    synthetic=russian_synthetic_char_set
+)
 
 
 def check_valid_label(label: str, char_set: str) -> bool:
@@ -30,7 +38,6 @@ class ModelOptions:
                  sensitive: bool = True,
                  PAD: bool = False,
                  data_filtering_off: bool = True,
-                 baiduCTC: bool = False,
                  num_fiducial: int = 20,
                  output_channel: int = 512,
                  hidden_size: int = 256):
@@ -57,7 +64,6 @@ class ModelOptions:
         self.sensitive = sensitive
         self.PAD = PAD
         self.data_filtering_off = data_filtering_off
-        self.baiduCTC = baiduCTC
         self.num_fiducial = num_fiducial
         self.output_channel = output_channel
         self.hidden_size = hidden_size

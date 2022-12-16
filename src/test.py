@@ -1,16 +1,15 @@
 import os
-import re
 import time
 
 import torch
 import torch.nn.functional as F
 import torch.utils.data
 from src.dataset.dataset import hierarchical_dataset, AlignCollate
-from nltk.metrics.distance import edit_distance
 
 from src.model.model import Model
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
 from src.params import ModelOptions
+from src.utils.evaluation import cer, wer, string_accuracy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -18,10 +17,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def validation(model, criterion, evaluation_loader, converter, opt):
     """ validation or evaluation """
     n_correct = 0
-    norm_ED = 0
     length_of_data = 0
     infer_time = 0
     valid_loss_avg = Averager()
+    confidence_score_list = []
+    gt_list = []
+    pred_list = []
 
     # Export predictions only when testing
     # because dir `/result/{opt.exp_name}` is created only during testing,
@@ -50,19 +51,11 @@ def validation(model, criterion, evaluation_loader, converter, opt):
             # Calculate evaluation loss for CTC deocder.
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)
             # permute 'preds' to use CTCloss format
-            if opt.baiduCTC:
-                cost = criterion(preds.permute(1, 0, 2), text_for_loss, preds_size, length_for_loss) / batch_size
-            else:
-                cost = criterion(preds.log_softmax(2).permute(1, 0, 2), text_for_loss, preds_size, length_for_loss)
+            cost = criterion(preds.log_softmax(2).permute(1, 0, 2), text_for_loss, preds_size, length_for_loss)
 
             # Select max probabilty (greedy decoding) then decode index to character
-            if opt.baiduCTC:
-                _, preds_index = preds.max(2)
-                preds_index = preds_index.view(-1)
-            else:
-                _, preds_index = preds.max(2)
+            _, preds_index = preds.max(2)
             preds_str = converter.decode(preds_index.data, preds_size.data)
-
         else:
             preds = model(image, text_for_pred, is_train=False)
             forward_time = time.time() - start_time
@@ -82,7 +75,7 @@ def validation(model, criterion, evaluation_loader, converter, opt):
         # calculate accuracy & confidence score
         preds_prob = F.softmax(preds, dim=2)
         preds_max_prob, _ = preds_prob.max(dim=2)
-        confidence_score_list = []
+
         for gt, pred, pred_max_prob in zip(labels, preds_str, preds_max_prob):
             if 'Attn' in opt.Prediction:
                 gt = gt[:gt.find('[s]')]
@@ -90,38 +83,9 @@ def validation(model, criterion, evaluation_loader, converter, opt):
                 pred = pred[:pred_EOS]  # prune after "end of sentence" token ([s])
                 pred_max_prob = pred_max_prob[:pred_EOS]
 
-            # To evaluate 'case sensitive model' with alphanumeric and case insensitve setting.
-            if opt.sensitive and opt.data_filtering_off:
-                pred = pred.lower()
-                gt = gt.lower()
-                alphanumeric_case_insensitve = '0123456789abcdefghijklmnopqrstuvwxyz'
-                out_of_alphanumeric_case_insensitve = f'[^{alphanumeric_case_insensitve}]'
-                pred = re.sub(out_of_alphanumeric_case_insensitve, '', pred)
-                gt = re.sub(out_of_alphanumeric_case_insensitve, '', gt)
-
-            if pred == gt:
-                n_correct += 1
-
             # Export predictions only when testing. This function is also be called by train.py.
             if hasattr(opt, 'eval_data'):
                 log_predictions.write(f'{i},{gt},{pred},{int(pred == gt)},{n_correct}\n')
-
-            '''
-            (old version) ICDAR2017 DOST Normalized Edit Distance https://rrc.cvc.uab.es/?ch=7&com=tasks
-            "For each word we calculate the normalized edit distance to the length of the ground truth transcription."
-            if len(gt) == 0:
-                norm_ED += 1
-            else:
-                norm_ED += edit_distance(pred, gt) / len(gt)
-            '''
-
-            # ICDAR2019 Normalized Edit Distance
-            if len(gt) == 0 or len(pred) == 0:
-                norm_ED += 0
-            elif len(gt) > len(pred):
-                norm_ED += edit_distance(pred, gt) / len(gt)
-            else:
-                norm_ED += edit_distance(pred, gt) / len(gt) # Changed to gt from pred.
 
             # calculate confidence score (= multiply of pred_max_prob)
             try:
@@ -129,16 +93,15 @@ def validation(model, criterion, evaluation_loader, converter, opt):
             except:
                 confidence_score = 0  # for empty pred case, when prune after "end of sentence" token ([s])
             confidence_score_list.append(confidence_score)
-            # print(pred, gt, pred==gt, confidence_score)
-
-    accuracy = n_correct / float(length_of_data) * 100
-    norm_ED = norm_ED / float(length_of_data)  # ICDAR2019 Normalized Edit Distance https://arxiv.org/pdf/1909.07741.pdf
+            gt_list.append(gt)
+            pred_list.append(pred)
 
     # Export predictions only when testing. This function is also be called by train.py.
     if hasattr(opt, 'eval_data'):
         log_predictions.close()
 
-    return valid_loss_avg.val(), accuracy, norm_ED, preds_str, confidence_score_list, labels, infer_time, length_of_data
+    return valid_loss_avg.val(), string_accuracy(pred_list, gt_list), cer(pred_list, gt_list), wer(pred_list, gt_list), \
+        preds_str, confidence_score_list, labels, infer_time, length_of_data
 
 
 def test(opt):
@@ -182,14 +145,16 @@ def test(opt):
             shuffle=False,
             num_workers=int(opt.workers),
             collate_fn=AlignCollate_evaluation, pin_memory=True)
-        _, accuracy_by_best_model, norm_ED, _, _, _, _, _ = validation(
+        _, accuracy, cer_value, wer_value, _, _, _, _, _ = validation(
             model, criterion, evaluation_loader, converter, opt)
         log.write(eval_data_log)
-        print(f'Accuracy: {accuracy_by_best_model:0.8f}')
-        print(f'Norm ED: {norm_ED:0.8f}')
+        print(f'Accuracy: {accuracy:0.8f}')
+        print(f'CER: {cer_value:0.8f}')
+        print(f'WER: {wer_value:0.8f}')
 
-        log.write(f'Accuracy: {accuracy_by_best_model:0.8f}\n')
-        log.write(f'Norm ED: {norm_ED:0.8f}\n')
+        log.write(f'Accuracy: {accuracy:0.8f}\n')
+        log.write(f'CER: {cer_value:0.8f}\n')
+        log.write(f'WER: {wer_value:0.8f}\n')
         log.close()
 
 
