@@ -5,7 +5,6 @@ import zipfile
 import pandas as pd
 import wget
 
-from src.utils import check_valid_label
 
 name_prefix = "rus"
 
@@ -38,11 +37,10 @@ def process_rus(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None
     test_df["path"] = f"{img_dir}/" + name_prefix + "test" + test_df.path
     train_df["path"] = f"{img_dir}/" + name_prefix + "train" + train_df.path
 
-    result_df = pd.concat([test_df, train_df], ignore_index=True)
-    result_df["valid"] = result_df.apply(lambda row: check_valid_label(row[1]), axis=1)
-    result_df = result_df[result_df.valid].drop(["valid"], axis=1)
-    result_df.to_csv(os.path.join(out_dir, gt_file), sep="\t", index=False, header=False)
-    print(f"{name_prefix} dataset length: {result_df.shape[0]}")
+    test_df.to_csv(os.path.join(out_dir, f"test_{gt_file}"), sep="\t", index=False, header=False)
+    test_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
+    print(f"{name_prefix}: train dataset length: {train_df.shape[0]}")
+    print(f"{name_prefix}: test dataset length: {test_df.shape[0]}")
 
     for img_dir_name in ("train", "test"):
         current_img_dir = os.path.join(data_dir, img_dir_name)

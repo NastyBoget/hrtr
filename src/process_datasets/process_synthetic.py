@@ -18,7 +18,7 @@ def process_synthetic(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -
     :return:
     """
 
-    data_url = "https://at.ispras.ru/owncloud/index.php/s/EGILtJ2rmaICpeY/download"
+    data_url = "https://at.ispras.ru/owncloud/index.php/s/5kZRtMH0Uis2PyW/download"
     root = os.path.join(data_dir, name_prefix)
     os.makedirs(root, exist_ok=True)
     archive = os.path.join(root, "archive.zip")
@@ -29,9 +29,9 @@ def process_synthetic(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -
     data_dir = os.path.join(root, "synthetic")
     print("Dataset downloaded")
 
-    df = pd.read_csv(os.path.join(data_dir, f"gt.txt"), sep="\t", names=["path", "word"])
-    df.to_csv(os.path.join(out_dir, gt_file), sep="\t", index=False, header=False)  # TODO make img_dir alterable
-    print(f"{name_prefix} dataset length: {df.shape[0]}")
+    df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "word"])
+    df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
+    print(f"{name_prefix} train dataset length: {df.shape[0]}")
 
     destination_img_dir = os.path.join(out_dir, img_dir)
     current_img_dir = os.path.join(data_dir, "img")

@@ -19,6 +19,8 @@ datasets                datasets
      |---ann
      |
      |---img
+     |
+     |---HKR_splitting.csv
 
 """
 import os
@@ -31,7 +33,7 @@ from src.process_datasets.process_rus_kz import process_rus_kz
 from src.process_datasets.process_synthetic import process_synthetic
 
 datasets_handlers = dict(
-    rus=process_rus,
+    # rus=process_rus,
     rus_kz=process_rus_kz,
     synthetic=process_synthetic
 )

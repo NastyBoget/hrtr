@@ -1,100 +1,66 @@
+import random
+from typing import List
+
+import cv2
 import numpy as np
 
-from src.dataset.augmentation.warp_mls import WarpMLS
+
+# THIS MODULE WORKS WITH INVERSE IMAGES
 
 
-def distort(src, segment):
-    img_h, img_w = src.shape[:2]
-
-    cut = img_w // segment
-    thresh = cut // 3
-    # thresh = img_h // segment // 3
-    # thresh = img_h // 5
-
-    src_pts = list()
-    dst_pts = list()
-
-    src_pts.append([0, 0])
-    src_pts.append([img_w, 0])
-    src_pts.append([img_w, img_h])
-    src_pts.append([0, img_h])
-
-    dst_pts.append([np.random.randint(thresh), np.random.randint(thresh)])
-    dst_pts.append([img_w - np.random.randint(thresh), np.random.randint(thresh)])
-    dst_pts.append([img_w - np.random.randint(thresh), img_h - np.random.randint(thresh)])
-    dst_pts.append([np.random.randint(thresh), img_h - np.random.randint(thresh)])
-
-    half_thresh = thresh * 0.5
-
-    for cut_idx in np.arange(1, segment, 1):
-        src_pts.append([cut * cut_idx, 0])
-        src_pts.append([cut * cut_idx, img_h])
-        dst_pts.append([cut * cut_idx + np.random.randint(thresh) - half_thresh,
-                        np.random.randint(thresh) - half_thresh])
-        dst_pts.append([cut * cut_idx + np.random.randint(thresh) - half_thresh,
-                        img_h + np.random.randint(thresh) - half_thresh])
-
-    trans = WarpMLS(src, src_pts, dst_pts, img_w, img_h)
-    dst = trans.generate()
-
-    return dst
+def move_img(img: np.ndarray) -> np.ndarray:
+    pixels_move = 1 + int(random.random() * 10)
+    img2 = np.zeros_like(img)
+    img2[:, pixels_move:] = img[:, :-pixels_move]
+    return img2
 
 
-def stretch(src, segment):
-    img_h, img_w = src.shape[:2]
-
-    cut = img_w // segment
-    thresh = cut * 4 // 5
-    # thresh = img_h // segment // 3
-    # thresh = img_h // 5
-
-    src_pts = list()
-    dst_pts = list()
-
-    src_pts.append([0, 0])
-    src_pts.append([img_w, 0])
-    src_pts.append([img_w, img_h])
-    src_pts.append([0, img_h])
-
-    dst_pts.append([0, 0])
-    dst_pts.append([img_w, 0])
-    dst_pts.append([img_w, img_h])
-    dst_pts.append([0, img_h])
-
-    half_thresh = thresh * 0.5
-
-    for cut_idx in np.arange(1, segment, 1):
-        move = np.random.randint(thresh) - half_thresh
-        src_pts.append([cut * cut_idx, 0])
-        src_pts.append([cut * cut_idx, img_h])
-        dst_pts.append([cut * cut_idx + move, 0])
-        dst_pts.append([cut * cut_idx + move, img_h])
-
-    trans = WarpMLS(src, src_pts, dst_pts, img_w, img_h)
-    dst = trans.generate()
-
-    return dst
+def resize_down(img: np.ndarray) -> np.ndarray:
+    factor = 0.95 - random.random() / 4.
+    h_ini, w_ini = img.shape
+    img1 = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC)
+    h_fin, w_fin = img1.shape
+    img2 = np.ones_like(img) * 0
+    img2[(h_ini - h_fin) // 2:-(h_ini - h_fin) // 2, :w_fin] = img1
+    return img2
 
 
-def perspective(src):
-    img_h, img_w = src.shape[:2]
+def resize_up(img: np.ndarray) -> np.ndarray:
+    factor = 1 + random.random() / 4.
+    h_ini, w_ini = img.shape
+    img1 = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC)
+    h_fin, w_fin = img1.shape
+    img2 = img1[h_fin - h_ini:, :w_ini]
+    return img2
 
-    thresh = img_h // 2
 
-    src_pts = list()
-    dst_pts = list()
+def get_img_augmented(image_list: List[np.ndarray]) -> List[np.ndarray]:
+    augmented_image_list = []
+    for img in image_list:
+        if len(img.shape) > 2:
+            img = img[:, :, 0]
 
-    src_pts.append([0, 0])
-    src_pts.append([img_w, 0])
-    src_pts.append([img_w, img_h])
-    src_pts.append([0, img_h])
+        # Move left
+        img = move_img(img)
 
-    dst_pts.append([0, np.random.randint(thresh)])
-    dst_pts.append([img_w, np.random.randint(thresh)])
-    dst_pts.append([img_w, img_h - np.random.randint(thresh)])
-    dst_pts.append([0, img_h - np.random.randint(thresh)])
+        # Skew
+        if random.random() < 0.8:
+            angle = (random.random() - 0.5) / 3.
+            M = np.float32([[1, -angle, 0.5 * img.shape[0] * angle], [0, 1, 0]])
+            img = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]),
+                                 flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR)
+        #  Resize
+        if random.random() < 0.4:
+            img = resize_down(img)
+        elif random.random() < 0.4:
+            img = resize_up(img)
 
-    trans = WarpMLS(src, src_pts, dst_pts, img_w, img_h)
-    dst = trans.generate()
+        #  Erode - dilate
+        if random.random() < 0.3:
+            img = cv2.erode(img, np.ones(2, np.uint8), iterations=1)
+        elif random.random() < 0.3:
+            img = cv2.dilate(img, np.ones(2, np.uint8), iterations=1)
 
-    return dst
+        augmented_image_list.append(img)
+
+    return augmented_image_list

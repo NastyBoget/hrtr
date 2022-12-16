@@ -6,12 +6,11 @@ import zipfile
 import pandas as pd
 import wget
 
-from src.utils import check_valid_label
-
 
 name_prefix = "rus_kz"
 
-# rus_kz dataset https://drive.google.com/drive/folders/1zOAOD_E7FWW9NrRAXSci0zmk30yqJS4o
+# more data https://drive.google.com/drive/folders/1zOAOD_E7FWW9NrRAXSci0zmk30yqJS4o https://github.com/abdoelsayed2016/KOHTD
+# rus_kz dataset https://github.com/abdoelsayed2016/HKR_Dataset splitting: https://github.com/bosskairat/Dataset
 
 
 def process_rus_kz(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None:
@@ -22,7 +21,7 @@ def process_rus_kz(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> N
     :param gt_file: name of the groundtruth file
     :return:
     """
-    data_url = "https://at.ispras.ru/owncloud/index.php/s/qeY5idmhbKOipxf/download"
+    data_url = "https://at.ispras.ru/owncloud/index.php/s/Xhna2RSqBZwXpgl/download"
     root = os.path.join(data_dir, name_prefix)
     os.makedirs(root)
     archive = os.path.join(root, "archive.zip")
@@ -46,9 +45,9 @@ def process_rus_kz(data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> N
         data_dict["word"].append(ann_f["description"])
 
     data_df = pd.DataFrame(data_dict)
+    split_df = pd.read_csv(os.path.join(data_dir, "HKR_splitting.csv"))
+
     data_df["path"] = f"{img_dir}/" + name_prefix + data_df.path
-    data_df["valid"] = data_df.apply(lambda row: check_valid_label(row[1]), axis=1)
-    data_df = data_df[data_df.valid].drop(["valid"], axis=1)
     print(f"{name_prefix} dataset length: {data_df.shape[0]}")
 
     data_df.to_csv(os.path.join(out_dir, gt_file), sep="\t", index=False, header=False)

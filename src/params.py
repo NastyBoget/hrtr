@@ -3,13 +3,12 @@ import torch
 
 english_char_set = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
                    "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
-char_set = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' \
-           'абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ' \
-           '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'
+russian_char_set = 'АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯабвгдежзийклмнопрстуфхцчшщьыъэюя0123456789.!"%(),-?:; '
+
+russian_kazakh_char_set = ' !(),-.:;?HoАБВГДЕЖЗИЙКЛМНОПРСТУФХЧШЩЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёғҚқҮӨө–—…'
 
 
-def check_valid_label(label: str) -> bool:
-    label = "".join(label.split())
+def check_valid_label(label: str, char_set: str) -> bool:
     return set(label).issubset(char_set)
 
 
@@ -27,7 +26,7 @@ class ModelOptions:
                  imgH: int = 32,
                  imgW: int = 100,
                  rgb: bool = False,
-                 character: str = char_set,
+                 character: str = russian_char_set,
                  sensitive: bool = True,
                  PAD: bool = False,
                  data_filtering_off: bool = True,
@@ -52,7 +51,7 @@ class ModelOptions:
             self.input_channel = 1
         self.character = character
         if Prediction == "Attn":
-            self.num_class = len(self.character) + 2  # TODO
+            self.num_class = len(self.character) + 2
         else:
             self.num_class = len(self.character) + 1
         self.sensitive = sensitive

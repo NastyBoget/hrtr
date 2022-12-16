@@ -36,30 +36,30 @@ def detect_baseline(img: np.ndarray, threshold: int = 20) -> Tuple[int, int, int
     return y0, y1, int(y_mean), angle[0]
 
 
-def crop_borders(img):
+def crop_borders(img: np.ndarray) -> np.ndarray:
     """
     Crop borders
     """
     # argwhere will give you the coordinates of every non-zero point
     true_points = np.argwhere(img)
-    if len(true_points)>0:
+    if len(true_points) > 0:
         # take the smallest points and use them as the top left of your crop
         top_left = true_points.min(axis=0)
         # take the largest points and use them as the bottom right of your crop
         bottom_right = true_points.max(axis=0)
-        img = img[top_left[0]:bottom_right[0]+1,  # plus 1 because slice isn't
-                  top_left[1]:bottom_right[1]+1]  # inclusive
+        img = img[top_left[0]:bottom_right[0] + 1,  # plus 1 because slice isn't
+                  top_left[1]:bottom_right[1] + 1]  # inclusive
     return img
 
 
-def rescale(img, threshold=20):
+def rescale(img: np.ndarray, threshold: int = 20) -> np.ndarray:
     img[img < 0] = 0
-    img2 = np.array((img - np.min(img)) * (255 / (np.max(img)-np.min(img)) ) )
+    img2 = np.array((img - np.min(img)) * (255 / (np.max(img)-np.min(img))))
     img2[img2 < threshold] = 0
     return img2
 
 
-def correct_line_inclination(img):
+def correct_line_inclination(img: np.ndarray) -> np.ndarray:
     # Detect baseline to correct inclination
     y0, y1, y_mean, angle = detect_baseline(img)
 
