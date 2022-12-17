@@ -8,7 +8,7 @@ from src.dataset.dataset import hierarchical_dataset, AlignCollate
 
 from src.model.model import Model
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
-from src.params import ModelOptions
+from src.params import ModelOptions, russian_synthetic_char_set, russian_char_set, russian_kazakh_char_set
 from src.utils.evaluation import cer, wer, string_accuracy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -123,7 +123,7 @@ def test(opt):
     # load model
     print('loading pretrained model from %s' % opt.saved_model)
     model.load_state_dict(torch.load(opt.saved_model, map_location=device))
-    opt.exp_name = '_'.join(opt.saved_model.split('/')[1:])
+    opt.exp_name = "_".join(opt.saved_model.split('/')[-2:]).split(".")[-2]
 
     """ keep evaluation model and result logs """
     os.makedirs(f'./result/{opt.exp_name}', exist_ok=True)
@@ -159,7 +159,26 @@ def test(opt):
 
 
 if __name__ == '__main__':
-    opt = ModelOptions(saved_model="/Users/anastasiabogatenkova/work/htr/saved_models/TPS-ResNet-BiLSTM-CTC-Seed1-Rus-Kz-Synth.pth",
-                       Prediction="CTC")
-    opt.eval_data = "/Users/anastasiabogatenkova/work/htr/datasets/lmdb/rus_kz/test"
+    dataset = "hkr1"
+    data_type = "hkr"
+    metric = "accuracy"
+
+    charset = None
+    if "rus" in data_type:
+        charset = russian_char_set
+    else:
+        charset = russian_kazakh_char_set
+    if "synthetic" in data_type:
+        charset = "".join(sorted(list(set(russian_synthetic_char_set + charset))))
+
+    opt = ModelOptions(saved_model=f"/Users/anastasiabogatenkova/work/hrtr/saved_models/{data_type}/best_{metric}.pth",
+                       character=charset)
+
+    if dataset == "rus":
+        opt.eval_data = "/Users/anastasiabogatenkova/work/hrtr/datasets/lmdb/test"
+    elif dataset == "hkr1":
+        opt.eval_data = "/Users/anastasiabogatenkova/work/hrtr/datasets/lmdb/test1"
+    else:
+        opt.eval_data = "/Users/anastasiabogatenkova/work/hrtr/datasets/lmdb/test2"
+
     test(opt)
