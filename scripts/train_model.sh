@@ -8,10 +8,10 @@ if [ -d "$DATA_DIR" ]; then
   echo "Skip dataset creation"
 else
   echo "Try to create dataset"
-  python3 src/process_datasets/create_lmdb_dataset_rus.py --out_dir $BASE_DIR --datasets_list rus
+  python3 src/process_datasets/create_lmdb_dataset_rus.py --out_dir $BASE_DIR --datasets_list hkr
 fi
 
 
 CUDA_VISIBLE_DEVICES=0 python3 src/train.py --train_data $DATA_DIR/train --valid_data $DATA_DIR/val --select_data "/" \
   --batch_ratio 1 --FT --manualSeed 1 --Transformation TPS --FeatureExtraction ResNet --SequenceModeling BiLSTM \
-  --Prediction Attn --sensitive --lang rus --exp_name rus_synthetic --datasets_list rus
+  --Prediction Attn --sensitive --lang rus --datasets_list hkr

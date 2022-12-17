@@ -8,7 +8,7 @@ import lmdb
 import numpy as np
 
 from src.params import check_valid_label, charsets
-from src.process_datasets.merge_and_split_datasets import merge_datasets
+from src.process_datasets.merge_datasets import merge_datasets
 
 
 def check_valid_image(image_bin: bytes):
@@ -103,7 +103,11 @@ if __name__ == "__main__":
     merge_datasets(data_dir=data_dir, img_dir=image_dir, out_dir=intermediate_dir, datasets_list=datasets_list)
     char_set = "".join(set("".join(charsets[dataset_name] for dataset_name in datasets_list)))
 
-    for stage in ("train", "val", "test"):
+    for file_name in os.listdir(os.path.join(data_dir, intermediate_dir)):
+        if not (file_name.startswith("gt_") and file_name.endswith(".txt")):
+            continue
+
+        stage = file_name[3:-4]
         output_path = os.path.join(data_dir, out_dir, stage)
         os.makedirs(output_path, exist_ok=True)
         create_dataset(input_path=os.path.join(data_dir, intermediate_dir),

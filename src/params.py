@@ -1,8 +1,6 @@
 import torch
 
 
-english_char_set = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" \
-                   "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 russian_synthetic_char_set = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
 
 russian_char_set = ' !"%(),-./0123456789:;?[]abgnpvx«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё'
@@ -11,7 +9,7 @@ russian_kazakh_char_set = ' !(),-.:;?HoАБВГДЕЖЗИЙКЛМНОПРСТУ�
 
 charsets = dict(
     rus=russian_char_set,
-    rus_kz=russian_kazakh_char_set,
+    hkr=russian_kazakh_char_set,
     synthetic=russian_synthetic_char_set
 )
 
