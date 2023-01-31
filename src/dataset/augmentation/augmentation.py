@@ -1,65 +1,42 @@
 import random
 from typing import List
 
-import cv2
 import numpy as np
 
-
-# THIS MODULE WORKS WITH INVERSE IMAGES
-
-
-def move_img(img: np.ndarray) -> np.ndarray:
-    pixels_move = 1 + int(random.random() * 10)
-    img2 = np.zeros_like(img)
-    img2[:, pixels_move:] = img[:, :-pixels_move]
-    return img2
+from src.dataset.augmentation.text_augmentation import change_width, blur, erode, dilate, resize_up, resize_down
+from src.dataset.augmentation.background_augmentation import add_blot, fill_gradient, draw_lines, add_noise, add_stains, add_blurred_stains, \
+    add_cut_characters
 
 
-def resize_down(img: np.ndarray) -> np.ndarray:
-    factor = 0.95 - random.random() / 4.
-    h_ini, w_ini = img.shape
-    img1 = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC)
-    h_fin, w_fin = img1.shape
-    img2 = np.ones_like(img) * 0
-    img2[(h_ini - h_fin) // 2:-(h_ini - h_fin) // 2, :w_fin] = img1
-    return img2
-
-
-def resize_up(img: np.ndarray) -> np.ndarray:
-    factor = 1 + random.random() / 4.
-    h_ini, w_ini = img.shape
-    img1 = cv2.resize(img, None, fx=factor, fy=factor, interpolation=cv2.INTER_CUBIC)
-    h_fin, w_fin = img1.shape
-    img2 = img1[h_fin - h_ini:, :w_ini]
-    return img2
-
-
-def get_img_augmented(image_list: List[np.ndarray]) -> List[np.ndarray]:
+def augment(image_list: List[np.ndarray]) -> List[np.ndarray]:
+    """
+    :param image_list: list of images with white background and 3 dimensions
+    :return: list of augmented images
+    """
     augmented_image_list = []
+    augment_probability = 0.4
+
     for img in image_list:
-        if len(img.shape) > 2:
-            img = img[:, :, 0]
 
-        # Move left
-        img = move_img(img)
+        # Text augmentation
+        img = change_width(img, proportion=random.uniform(0.5, 2.))
+        img = blur(img, max_blur=random.randint(1, 7)) if random.random() < augment_probability else img
+        img = resize_down(img) if random.random() < augment_probability else img
+        img = resize_up(img) if random.random() < augment_probability else img
+        img = erode(img) if random.random() < augment_probability else img
+        img = dilate(img) if random.random() < augment_probability else img
 
-        # Skew
-        if random.random() < 0.8:
-            angle = (random.random() - 0.5) / 3.
-            M = np.float32([[1, -angle, 0.5 * img.shape[0] * angle], [0, 1, 0]])
-            img = cv2.warpAffine(img, M, (img.shape[1], img.shape[0]),
-                                 flags=cv2.WARP_INVERSE_MAP | cv2.INTER_LINEAR)
-        #  Resize
-        if random.random() < 0.4:
-            img = resize_down(img)
-        elif random.random() < 0.4:
-            img = resize_up(img)
-
-        #  Erode - dilate
-        if random.random() < 0.3:
-            img = cv2.erode(img, np.ones(2, np.uint8), iterations=1)
-        elif random.random() < 0.3:
-            img = cv2.dilate(img, np.ones(2, np.uint8), iterations=1)
+        # Background augmentation
+        img = add_blot(img, blots_num=random.randint(0, 3))
+        img = fill_gradient(img, color=random.randint(100, 150), rotate=random.randint(0, 3), light=bool(random.randint(0, 1))) \
+            if random.random() < augment_probability else img
+        img = draw_lines(img, color=random.randint(50, 200), thickness=random.randint(1, 3), lines_type=random.randint(0, 1),
+                         line_width=random.randint(2, 3)) if random.random() < augment_probability else img
+        img = add_noise(img, max_dots=random.randint(0, 100), min_color=0, max_color=100)
+        img = add_stains(img, color=random.randint(50, 200), light=bool(random.randint(0, 1))) if random.random() < augment_probability else img
+        img = add_blurred_stains(img, max_color=random.randint(100, 255), light=bool(random.randint(0, 1))) \
+            if random.random() < augment_probability else img
+        img = add_cut_characters(img, under=bool(random.randint(0, 1))) if random.random() < augment_probability else img
 
         augmented_image_list.append(img)
 

@@ -9,7 +9,7 @@ from src.dataset.dataset import hierarchical_dataset, AlignCollate
 from src.model.model import Model
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
 from src.params import ModelOptions, russian_synthetic_char_set, russian_char_set, russian_kazakh_char_set
-from src.utils.evaluation import cer, wer, string_accuracy
+from src.utils.metrics import cer, wer, string_accuracy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

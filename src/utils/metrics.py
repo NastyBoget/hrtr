@@ -1,6 +1,9 @@
-def levenshtein_distance(first, second):
-    distance = [[0 for _ in range(len(second) + 1)]
-                for _ in range(len(first) + 1)]
+"""Metrics from https://github.com/ai-forever/StackMix-OCR"""
+from typing import List, Union
+
+
+def levenshtein_distance(first: Union[str, List[str]], second: Union[str, List[str]]) -> int:
+    distance = [[0 for _ in range(len(second) + 1)] for _ in range(len(first) + 1)]
     for i in range(len(first) + 1):
         for j in range(len(second) + 1):
             if i == 0:
@@ -15,7 +18,7 @@ def levenshtein_distance(first, second):
     return distance[len(first)][len(second)]
 
 
-def cer(pred_texts, gt_texts):
+def cer(pred_texts: List[str], gt_texts: List[str]) -> float:
     assert len(pred_texts) == len(gt_texts)
     lev_distances, num_gt_chars = 0, 0
     for pred_text, gt_text in zip(pred_texts, gt_texts):
@@ -24,7 +27,7 @@ def cer(pred_texts, gt_texts):
     return lev_distances / num_gt_chars
 
 
-def wer(pred_texts, gt_texts):
+def wer(pred_texts: List[str], gt_texts: List[str]) -> float:
     assert len(pred_texts) == len(gt_texts)
     lev_distances, num_gt_words = 0, 0
     for pred_text, gt_text in zip(pred_texts, gt_texts):
@@ -34,7 +37,7 @@ def wer(pred_texts, gt_texts):
     return lev_distances / num_gt_words
 
 
-def string_accuracy(pred_texts, gt_texts):
+def string_accuracy(pred_texts: List[str], gt_texts: List[str]) -> float:
     assert len(pred_texts) == len(gt_texts)
     correct = 0
     for pred_text, gt_text in zip(pred_texts, gt_texts):

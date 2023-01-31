@@ -15,7 +15,7 @@ import torch.utils.data
 import numpy as np
 
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
-from src.dataset.dataset import hierarchical_dataset, AlignCollate, Batch_Balanced_Dataset
+from src.dataset.dataset import hierarchical_dataset, AlignCollate, BatchBalancedDataset
 from src.model.model import Model
 from src.test import validation
 from src.model.pytorchtools import EarlyStopping
@@ -35,7 +35,7 @@ def train(opt):
     
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
-    train_dataset = Batch_Balanced_Dataset(opt)
+    train_dataset = BatchBalancedDataset(opt)
 
     log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
     AlignCollate_valid = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)

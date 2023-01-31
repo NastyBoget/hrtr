@@ -1,4 +1,4 @@
-""" a modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/dataset.py """
+"""Modified version of repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/dataset.py """
 
 import os
 import sys
@@ -10,13 +10,12 @@ import torch
 
 from natsort import natsorted
 from PIL import Image
-import numpy as np
 from torch.utils.data import Dataset, ConcatDataset, Subset
 from torch._utils import _accumulate
 import torchvision.transforms as transforms
 
 
-class Batch_Balanced_Dataset(object):
+class BatchBalancedDataset(object):
 
     def __init__(self, opt):
         """
@@ -103,7 +102,7 @@ class Batch_Balanced_Dataset(object):
 
 
 def hierarchical_dataset(root, opt, select_data='/'):
-    """ select_data='/' contains all sub-directory of root directory """
+    """ select_data='/' contains all subdirectory of root directory """
     dataset_list = []
     dataset_log = f'dataset_root:    {root}\t dataset: {select_data[0]}'
     print(dataset_log)
@@ -118,7 +117,7 @@ def hierarchical_dataset(root, opt, select_data='/'):
 
             if select_flag:
                 dataset = LmdbDataset(dirpath, opt)
-                sub_dataset_log = f'sub-directory:\t/{os.path.relpath(dirpath, root)}\t num samples: {len(dataset)}'
+                sub_dataset_log = f'subdirectory:\t/{os.path.relpath(dirpath, root)}\t num samples: {len(dataset)}'
                 print(sub_dataset_log)
                 dataset_log += f'{sub_dataset_log}\n'
                 dataset_list.append(dataset)
@@ -224,7 +223,7 @@ class LmdbDataset(Dataset):
             out_of_char = f'[^{self.opt.character}]'
             label = re.sub(out_of_char, '', label)
 
-        return (img, label)
+        return img, label
 
 
 class RawDataset(Dataset):
@@ -261,7 +260,7 @@ class RawDataset(Dataset):
             else:
                 img = Image.new('L', (self.opt.imgW, self.opt.imgH))
 
-        return (img, self.image_path_list[index])
+        return img, self.image_path_list[index]
 
 
 class ResizeNormalize(object):
@@ -335,16 +334,3 @@ class AlignCollate(object):
             image_tensors = torch.cat([t.unsqueeze(0) for t in image_tensors], 0)
 
         return image_tensors, labels
-
-
-def tensor2im(image_tensor, imtype=np.uint8):
-    image_numpy = image_tensor.cpu().float().numpy()
-    if image_numpy.shape[0] == 1:
-        image_numpy = np.tile(image_numpy, (3, 1, 1))
-    image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
-    return image_numpy.astype(imtype)
-
-
-def save_image(image_numpy, image_path):
-    image_pil = Image.fromarray(image_numpy)
-    image_pil.save(image_path)

@@ -32,8 +32,7 @@ class TextDetector:
         |----------------------------------|
                                     (x_bottom_right, y_bottom_right)
 
-        Predict consists from List of bounding box with a format
-        (x_top_left, y_top_left, x_bottom_right, y_bottom_right)
+        Predict consists from List of bounding box with a format (x_top_left, y_top_left, x_bottom_right, y_bottom_right)
         :return: Text Detection model
         """
         # lazy loading net
@@ -53,8 +52,7 @@ class TextDetector:
     def predict(self, image: np.ndarray) -> List[tuple]:
         """
         :param image: input batch of image with some text
-        :return: prediction: List[tuple] - text coords prediction, list of bboxes
-        (x_top_left, y_top_left, x_bottom_right, y_bottom_right)
+        :return: prediction: List[tuple] - text coords prediction, list of bboxes (x_top_left, y_top_left, x_bottom_right, y_bottom_right)
         """
         h, w, _ = image.shape
         preds = self.net([image])
