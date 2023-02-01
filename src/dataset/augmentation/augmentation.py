@@ -27,11 +27,11 @@ def augment(image_list: List[np.ndarray]) -> List[np.ndarray]:
         img = dilate(img) if random.random() < augment_probability else img
 
         # Background augmentation
+        img = draw_lines(img, color=random.randint(50, 200), thickness=random.randint(1, 3), lines_type=random.randint(0, 1),
+                         line_width=random.randint(2, 3)) if random.random() < augment_probability else img
         img = add_blot(img, blots_num=random.randint(0, 3))
         img = fill_gradient(img, color=random.randint(100, 150), rotate=random.randint(0, 3), light=bool(random.randint(0, 1))) \
             if random.random() < augment_probability else img
-        img = draw_lines(img, color=random.randint(50, 200), thickness=random.randint(1, 3), lines_type=random.randint(0, 1),
-                         line_width=random.randint(2, 3)) if random.random() < augment_probability else img
         img = add_noise(img, max_dots=random.randint(0, 100), min_color=0, max_color=100)
         img = add_stains(img, color=random.randint(50, 200), light=bool(random.randint(0, 1))) if random.random() < augment_probability else img
         img = add_blurred_stains(img, max_color=random.randint(100, 255), light=bool(random.randint(0, 1))) \
