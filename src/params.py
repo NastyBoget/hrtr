@@ -1,23 +1,6 @@
 import torch
 
 
-russian_synthetic_char_set = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
-
-russian_char_set = ' !"%(),-./0123456789:;?[]abgnpvx«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё'
-
-russian_kazakh_char_set = ' !(),-.:;?HoАБВГДЕЖЗИЙКЛМНОПРСТУФХЧШЩЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёғҚқҮӨө–—…'
-
-charsets = dict(
-    rus=russian_char_set,
-    hkr=russian_kazakh_char_set,
-    synthetic=russian_synthetic_char_set
-)
-
-
-def check_valid_label(label: str, char_set: str) -> bool:
-    return set(label).issubset(char_set)
-
-
 class ModelOptions:
     
     def __init__(self,
@@ -32,7 +15,7 @@ class ModelOptions:
                  imgH: int = 32,
                  imgW: int = 100,
                  rgb: bool = False,
-                 character: str = russian_char_set,
+                 character: str = "",
                  sensitive: bool = True,
                  PAD: bool = False,
                  data_filtering_off: bool = True,

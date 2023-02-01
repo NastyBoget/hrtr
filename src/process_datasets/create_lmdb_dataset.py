@@ -7,11 +7,11 @@ import cv2
 import lmdb
 import numpy as np
 
-from src.params import check_valid_label, charsets
+from src.process_datasets.charsets import check_valid_label, charsets
 from src.process_datasets.merge_datasets import merge_datasets
 
 
-def check_valid_image(image_bin: bytes):
+def check_valid_image(image_bin: bytes) -> bool:
     if image_bin is None:
         return False
     image_buf = np.frombuffer(image_bin, dtype=np.uint8)

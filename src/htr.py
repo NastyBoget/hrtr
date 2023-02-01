@@ -6,11 +6,10 @@ import cv2
 import torch
 from PIL import Image
 from doctr.models import detection_predictor
-from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from src.utils.lines_segmenter import LinesSegmenter
-from src.dataset.dataset import AlignCollate
+from dataset.preprocessing.resize_normalization import AlignCollate
 from src.model.model import Model
 from src.model.utils import AttnLabelConverter, CTCLabelConverter
 from src.params import ModelOptions
@@ -19,7 +18,7 @@ from src.params import ModelOptions
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class HTRReader:
+class HRTReader:
 
     def __init__(self, opt: ModelOptions) -> None:
         self.model = detection_predictor(arch='db_resnet50', pretrained=True).eval()
@@ -29,7 +28,7 @@ class HTRReader:
         self.htr_model.load_state_dict(torch.load(self.opt.saved_model, map_location=device))
         self.htr_model.eval()
 
-        self.align_converter = AlignCollate(imgH=self.opt.imgH, imgW=self.opt.imgW, keep_ratio_with_pad=self.opt.PAD)
+        self.align_converter = AlignCollate(img_h=self.opt.imgH, img_w=self.opt.imgW, keep_ratio_with_pad=self.opt.PAD)
         if self.opt.Prediction == "Attn":
             self.label_converter = AttnLabelConverter(self.opt.character)
         else:
@@ -76,45 +75,22 @@ class HTRReader:
         return lines_list
 
 
-def save_results_img(in_dir: str, out_dir: str, reader: HTRReader) -> None:
-    os.makedirs(out_dir, exist_ok=True)
-    for file_name in tqdm(os.listdir(in_dir)):
-        if not file_name.endswith(".jpg"):
-            continue
-        words_list = reader.get_text(os.path.join(in_dir, file_name))
-        words_list = [" ".join(line) for line in words_list]
-        words_str = "\n".join(words_list)
-        fig, ax = plt.subplots(1, 1)
-        fig.set_figheight(15)
-        fig.set_figwidth(15)
-        ax.set_title(words_str)
-        ax.axis('off')
-        img = cv2.imread(os.path.join(in_dir, file_name))
-        ax.imshow(img)
-        fig.savefig(os.path.join(out_dir, file_name))
-        plt.close(fig)
-
-
 if __name__ == "__main__":
-    save_results = False
     opt = ModelOptions(saved_model="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth",
                        batch_size=1, Prediction="Attn")
-    htr_reader = HTRReader(opt)
+    htr_reader = HRTReader(opt)
 
-    if save_results:
-        save_results_img("data/lising", "data/result_lising", htr_reader)
-    else:
-        data_dir = "../data/random_data"
-        result = {}
+    data_dir = "../data/random_data"
+    result = {}
 
-        for file_name in tqdm(os.listdir(data_dir)):
-            if not file_name.endswith(".jpg"):
-                continue
-            doc_path = os.path.join(data_dir, file_name)
-            words_list = htr_reader.get_text(doc_path)
-            words_list = [" ".join(line) for line in words_list]
-            words_str = "\n".join(words_list)
-            result[file_name] = words_str
+    for file_name in tqdm(os.listdir(data_dir)):
+        if not file_name.endswith(".jpg"):
+            continue
+        doc_path = os.path.join(data_dir, file_name)
+        words_list = htr_reader.get_text(doc_path)
+        words_list = [" ".join(line) for line in words_list]
+        words_str = "\n".join(words_list)
+        result[file_name] = words_str
 
-        with open(os.path.join(data_dir, "pred.json"), "w") as f:
-            json.dump(result, f)
+    with open(os.path.join(data_dir, "pred.json"), "w") as f:
+        json.dump(result, f)

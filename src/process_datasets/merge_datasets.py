@@ -4,7 +4,7 @@ initial structure       result structure
 
 datasets                datasets
 |                       |
-|----rus                |--merged
+|----cyrillic                |--merged
 |    |                      |
 |    |---test               |---img
 |    |                      |
@@ -14,7 +14,7 @@ datasets                datasets
 |    |                      |
 |    |---train.csv          |---gt_test.txt
 |
-|----rus_kz
+|----hkr
      |
      |---ann
      |
@@ -28,13 +28,13 @@ from typing import List
 
 import pandas as pd
 
-from src.process_datasets.process_rus import process_rus
-from src.process_datasets.process_rus_kz import process_rus_kz
-from src.process_datasets.process_synthetic import process_synthetic
+from src.process_datasets.cyrillic_processor import process_cyrillic
+from src.process_datasets.hkr_processor import process_hkr
+from src.process_datasets.synthetic_processor import process_synthetic
 
 datasets_handlers = dict(
-    rus=process_rus,
-    hkr=process_rus_kz,
+    cyrillic=process_cyrillic,
+    hkr=process_hkr,
     synthetic=process_synthetic
 )
 
@@ -66,12 +66,3 @@ def merge_datasets(data_dir: str, img_dir: str, out_dir: str, datasets_list: Lis
 
     for key in key2df:
         key2df[key].to_csv(os.path.join(data_dir, out_dir, f"gt_{key}.txt"), sep="\t", index=False, header=False)
-
-
-if __name__ == "__main__":
-    data_dir = "../../datasets"
-    out_dir = "merged"
-    img_dir = "img"
-    datasets = ["rus", "synthetic"]
-    os.makedirs(os.path.join(data_dir, out_dir, img_dir), exist_ok=True)
-    merge_datasets(data_dir, img_dir, out_dir, datasets)

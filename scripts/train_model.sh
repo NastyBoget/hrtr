@@ -8,7 +8,7 @@ if [ -d "$DATA_DIR" ]; then
   echo "Skip dataset creation"
 else
   echo "Try to create dataset"
-  python3 src/process_datasets/create_lmdb_dataset_rus.py --out_dir $BASE_DIR --datasets_list hkr
+  python3 src/process_datasets/create_lmdb_dataset.py --out_dir $BASE_DIR --datasets_list hkr
 fi
 
 

@@ -15,10 +15,12 @@ import torch.utils.data
 import numpy as np
 
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
-from src.dataset.dataset import hierarchical_dataset, AlignCollate, BatchBalancedDataset
+from src.dataset.lmdb_dataset import hierarchical_dataset
+from dataset.batch_balanced_dataset import BatchBalancedDataset
+from dataset.preprocessing.resize_normalization import AlignCollate
 from src.model.model import Model
 from src.test import validation
-from src.model.pytorchtools import EarlyStopping
+from src.model.early_stopping import EarlyStopping
 from src.params import charsets
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -38,7 +40,7 @@ def train(opt):
     train_dataset = BatchBalancedDataset(opt)
 
     log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
-    AlignCollate_valid = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
+    AlignCollate_valid = AlignCollate(img_h=opt.imgH, img_w=opt.imgW, keep_ratio_with_pad=opt.PAD)
     valid_dataset, valid_dataset_log = hierarchical_dataset(root=opt.valid_data, opt=opt)
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=opt.batch_size,
@@ -58,7 +60,7 @@ def train(opt):
     if opt.rgb:
         opt.input_channel = 3
     model = Model(opt)
-    print('Model input parameters', opt.imgH, opt.imgW, opt.num_fiducial, opt.input_channel, opt.output_channel,
+    print('Model input parameters', opt.img_h, opt.img_w, opt.num_fiducial, opt.input_channel, opt.output_channel,
           opt.hidden_size, opt.num_class, opt.batch_max_length, opt.Transformation, opt.FeatureExtraction,
           opt.SequenceModeling, opt.Prediction)
 
@@ -282,11 +284,11 @@ if __name__ == '__main__':
     parser.add_argument('--rho', type=float, default=0.95, help='decay rate rho for Adadelta. default=0.95')
     parser.add_argument('--eps', type=float, default=1e-8, help='eps for Adadelta. default=1e-8')
     parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping value. default=5')
-    """ Data processing """
+
+    # Data processing
     parser.add_argument('--select_data', type=str, default='MJ-ST',
                         help='select training data (default is MJ-ST, which means MJ and ST used as training data)')
-    parser.add_argument('--batch_ratio', type=str, default='0.5-0.5',
-                        help='assign ratio for each selected data in the batch')
+    parser.add_argument('--batch_ratio', type=str, default='0.5-0.5', help='assign ratio for each selected data in the batch')
     parser.add_argument('--total_data_usage_ratio', type=str, default='1.0',
                         help='total data usage ratio, this ratio is multiplied to total number of data.')
     parser.add_argument('--batch_max_length', type=int, default=25, help='maximum-label-length')
@@ -296,17 +298,15 @@ if __name__ == '__main__':
     parser.add_argument('--sensitive', action='store_true', help='for sensitive character mode')
     parser.add_argument('--PAD', action='store_true', help='whether to keep ratio then pad for image resize')
     parser.add_argument('--data_filtering_off', action='store_true', help='for data_filtering_off mode')
-    """ Model Architecture """
+
+    # Model Architecture
     parser.add_argument('--Transformation', type=str, required=True, help='Transformation stage. None|TPS')
-    parser.add_argument('--FeatureExtraction', type=str, required=True,
-                        help='FeatureExtraction stage. VGG|RCNN|ResNet')
+    parser.add_argument('--FeatureExtraction', type=str, required=True, help='FeatureExtraction stage. VGG|RCNN|ResNet')
     parser.add_argument('--SequenceModeling', type=str, required=True, help='SequenceModeling stage. None|BiLSTM')
     parser.add_argument('--Prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
     parser.add_argument('--num_fiducial', type=int, default=20, help='number of fiducial points of TPS-STN')
-    parser.add_argument('--input_channel', type=int, default=1,
-                        help='the number of input channel of Feature extractor')
-    parser.add_argument('--output_channel', type=int, default=512,
-                        help='the number of output channel of Feature extractor')
+    parser.add_argument('--input_channel', type=int, default=1, help='the number of input channel of Feature extractor')
+    parser.add_argument('--output_channel', type=int, default=512, help='the number of output channel of Feature extractor')
     parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
     parser.add_argument('--patience', type=int, default=5, help='patience for the early stopping')
 
@@ -320,11 +320,10 @@ if __name__ == '__main__':
         shutil.rmtree(f'./saved_models/{opt.exp_name}')
     os.makedirs(f'./saved_models/{opt.exp_name}')
 
-    """ vocab / character number configuration """
     if opt.sensitive and opt.lang == "en":
         opt.character = string.printable[:-6]  # same with ASTER setting (use 94 char).
 
-    """ Seed and GPU setting """
+    # Seed and GPU setting
     random.seed(opt.manualSeed)
     np.random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
@@ -336,7 +335,6 @@ if __name__ == '__main__':
     if opt.num_gpu > 1:
         print('------ Use multi-GPU setting ------')
         print('if you stuck too long time with multi-GPU setting, try to set --workers 0')
-        # check multi-GPU issue https://github.com/clovaai/deep-text-recognition-benchmark/issues/1
         opt.workers = opt.workers * opt.num_gpu
         opt.batch_size = opt.batch_size * opt.num_gpu
 

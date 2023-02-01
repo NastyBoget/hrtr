@@ -4,11 +4,12 @@ import time
 import torch
 import torch.nn.functional as F
 import torch.utils.data
-from src.dataset.dataset import hierarchical_dataset, AlignCollate
+from src.dataset.lmdb_dataset import hierarchical_dataset
+from dataset.preprocessing.resize_normalization import AlignCollate
 
 from src.model.model import Model
 from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
-from src.params import ModelOptions, russian_synthetic_char_set, russian_char_set, russian_kazakh_char_set
+from src.params import ModelOptions, russian_synthetic_char_set, russian_cyrillic_char_set, russian_hkr_char_set
 from src.utils.metrics import cer, wer, string_accuracy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -115,7 +116,7 @@ def test(opt):
     if opt.rgb:
         opt.input_channel = 3
     model = Model(opt)
-    print('model input parameters', opt.imgH, opt.imgW, opt.num_fiducial, opt.input_channel, opt.output_channel,
+    print('model input parameters', opt.img_h, opt.img_w, opt.num_fiducial, opt.input_channel, opt.output_channel,
           opt.hidden_size, opt.num_class, opt.batch_max_length, opt.Transformation, opt.FeatureExtraction,
           opt.SequenceModeling, opt.Prediction)
     model = torch.nn.DataParallel(model).to(device)
@@ -138,7 +139,7 @@ def test(opt):
     model.eval()
     with torch.no_grad():
         log = open(f'./result/{opt.exp_name}/log_evaluation.txt', 'a')
-        AlignCollate_evaluation = AlignCollate(imgH=opt.imgH, imgW=opt.imgW, keep_ratio_with_pad=opt.PAD)
+        AlignCollate_evaluation = AlignCollate(img_h=opt.imgH, img_w=opt.imgW, keep_ratio_with_pad=opt.PAD)
         eval_data, eval_data_log = hierarchical_dataset(root=opt.eval_data, opt=opt)
         evaluation_loader = torch.utils.data.DataLoader(
             eval_data, batch_size=opt.batch_size,
@@ -165,9 +166,9 @@ if __name__ == '__main__':
 
     charset = None
     if "rus" in data_type:
-        charset = russian_char_set
+        charset = russian_cyrillic_char_set
     else:
-        charset = russian_kazakh_char_set
+        charset = russian_hkr_char_set
     if "synthetic" in data_type:
         charset = "".join(sorted(list(set(russian_synthetic_char_set + charset))))
 

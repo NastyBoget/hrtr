@@ -108,7 +108,8 @@ class Averager(object):
     """Compute average for torch.Tensor, used for loss average."""
 
     def __init__(self):
-        self.reset()
+        self.n_count = 0
+        self.sum = 0
 
     def add(self, v):
         count = v.data.numel()

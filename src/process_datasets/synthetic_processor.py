@@ -1,0 +1,52 @@
+import logging
+import os
+import shutil
+import zipfile
+
+import pandas as pd
+import wget
+
+from process_datasets.dataset_processor import DatasetProcessor
+
+
+class SyntheticDatasetProcessor(DatasetProcessor):
+    __dataset_name = "synthetic"
+
+    def __init__(self, logger: logging.Logger) -> None:
+        super().__init__()
+        self.charset = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+        # first https://at.ispras.ru/owncloud/index.php/s/5kZRtMH0Uis2PyW/download
+        # second https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
+        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download"
+        self.logger = logger
+
+    @property
+    def dataset_name(self) -> str:
+        return self.__dataset_name
+
+    def process_dataset(self, data_dir: str, out_dir: str, img_dir: str, gt_file: str) -> None:
+        root = os.path.join(data_dir, self.dataset_name)
+        os.makedirs(root, exist_ok=True)
+        archive = os.path.join(root, "archive.zip")
+        self.logger.info(f"Downloading {self.dataset_name} dataset...")
+        wget.download(self.data_url, archive)
+        with zipfile.ZipFile(archive, 'r') as zip_ref:
+            zip_ref.extractall(root)
+        data_dir = os.path.join(root, "synthetic")
+        self.logger.info("Dataset downloaded")
+
+        df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "word"])
+        char_set = set()
+        for _, row in df.iterrows():
+            char_set = char_set | set(row["word"])
+        self.logger.info(f"{self.dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
+        self.charset = char_set
+
+        df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
+        self.logger.info(f"{self.dataset_name} dataset length: train = {df.shape[0]}")
+
+        destination_img_dir = os.path.join(out_dir, img_dir)
+        current_img_dir = os.path.join(data_dir, "img")
+        for img_name in os.listdir(current_img_dir):
+            shutil.move(os.path.join(current_img_dir, img_name), os.path.join(destination_img_dir, img_name))
+        shutil.rmtree(root)
