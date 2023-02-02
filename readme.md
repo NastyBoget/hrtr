@@ -43,7 +43,7 @@
 |   WER    |  68.05   |   65.79   |   7.37    |  36.3   |
 
 
-### With synthetic
+### With synthetic № 1
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
@@ -58,10 +58,14 @@ $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 TODO
 
-## Results with augmentation without preprocessing
+## Results with preprocessing and image augmentation
 
 TODO
 
-## Results with preprocessing and augmentation
+## Results with preprocessing and text augmentation
+
+TODO
+
+## Results with preprocessing and both text, image augmentation
 
 TODO

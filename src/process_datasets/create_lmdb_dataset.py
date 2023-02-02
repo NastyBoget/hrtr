@@ -1,14 +1,37 @@
-""" a modified version of CRNN torch repository https://github.com/bgshih/crnn/blob/master/tool/create_dataset.py """
+"""
+Modified version of CRNN torch repository https://github.com/bgshih/crnn/blob/master/tool/create_dataset.py
+
+Input:                                  Output:
+    |                                         |
+    |--- img_dir --- img_name_1               |--- train --- dataset_1 --- lmdb_files
+    |          |                              |        |
+    |          | --- ...                      |        | --- dataset_n --- lmdb_files
+    |          |                              |
+    |          | --- img_name_n               |--- test (same as train)
+    |                                         |
+    |--- gt_file                              |--- val (same as train)
+
+"""
 import argparse
+import logging
 import os
-import shutil
+import tempfile
+from typing import Any
 
 import cv2
 import lmdb
 import numpy as np
+import pandas as pd
+from lmdb import Environment
 
-from src.process_datasets.charsets import check_valid_label, charsets
-from src.process_datasets.merge_datasets import merge_datasets
+from process_datasets.cyrillic_processor import CyrillicDatasetProcessor
+from process_datasets.hkr_processor import HKRDatasetProcessor
+from process_datasets.synthetic_processor import SyntheticDatasetProcessor
+from utils.logger import get_logger
+
+
+def check_valid_label(label: str, char_set: str) -> bool:
+    return set(label).issubset(char_set)
 
 
 def check_valid_image(image_bin: bytes) -> bool:
@@ -22,96 +45,105 @@ def check_valid_image(image_bin: bytes) -> bool:
     return True
 
 
-def write_cache(env, cache):
+def write_cache(env: Environment, cache: dict) -> None:
     with env.begin(write=True) as txn:
         for k, v in cache.items():
             txn.put(k, v)
 
 
-def create_dataset(input_path: str, gt_file: str, output_path: str, char_set: str) -> None:
+def create_dataset(input_path: str, gt_file: str, output_path: str, char_set: str, logger: logging.Logger) -> None:
     """
     Create LMDB dataset for training and evaluation.
-    ARGS:
-        input_path  : input folder path where starts imagePath
-        gt_file     : list of image path and label
-        output_path : LMDB output path
-        char_set : set of allowed characters
+    :param input_path: input folder path where starts path to the images
+    :param gt_file: path of the file with list of images' names and labels
+    :param output_path: LMDB output path
+    :param char_set: set of allowed characters
+    :param logger: logger
     """
     os.makedirs(output_path, exist_ok=True)
     env = lmdb.open(output_path, map_size=1099511627776)
     cache = {}
     cnt = 1
 
-    with open(gt_file, 'r', encoding='utf-8') as data:
-        datalist = data.readlines()
+    df = pd.read_csv(gt_file, sep="\t", names=["path", "word"])
 
-    n_samples = len(datalist)
-    for i in range(n_samples):
+    n_samples = df.shape[0]
+    for index, row in df.iterrows():
         try:
-            image_path, label = datalist[i].strip('\n').split('\t')
+            image_path, label = row["path"], row["word"]
             if not check_valid_label(label, char_set):
-                print(f'{label} is not a valid label')
+                logger.info(f'{label} is not a valid label')
                 continue
-        except ValueError:
-            continue
-        image_path = os.path.join(input_path, image_path)
 
-        if not os.path.exists(image_path):
-            print(f'{image_path} does not exist')
-            continue
-        with open(image_path, 'rb') as f:
-            image_bin = f.read()
-        try:
+            image_path = os.path.join(input_path, image_path)
+            if not os.path.exists(image_path):
+                logger.info(f'{image_path} does not exist')
+                continue
+
+            with open(image_path, 'rb') as f:
+                image_bin = f.read()
+
             if not check_valid_image(image_bin):
-                print(f'{image_path} is not a valid image')
+                logger.info(f'{image_path} is not a valid image')
                 continue
         except Exception as e:
-            print(f'error occurred on {i} iteration: {e}')
-            with open(output_path + '/error_image_log.txt', 'a') as log:
-                log.write(f'{i}-th image data occurred error: {e}\n')
+            logger.error(f'Error occurred on {index} iteration: {e}')
             continue
 
-        image_key = 'image-%09d'.encode() % cnt
-        label_key = 'label-%09d'.encode() % cnt
-        cache[image_key] = image_bin
-        cache[label_key] = label.encode()
+        cache[f'image-{cnt:09d}'.encode()] = image_bin
+        cache[f'label-{cnt:09d}'.encode()] = label.encode()
 
         if cnt % 1000 == 0:
             write_cache(env, cache)
             cache = {}
-            print(f'Written {cnt} / {n_samples}')
+            logger.info(f'Written {cnt} / {n_samples}')
         cnt += 1
-    n_samples = cnt-1
+    n_samples = cnt - 1
+    logger.info(f"Resulting number of samples: {n_samples}")
     cache['num-samples'.encode()] = str(n_samples).encode()
     write_cache(env, cache)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--datasets_list', nargs='+', required=True)
-    parser.add_argument('--out_dir', type=str, help='directory for saving dataset', required=True)
+def create_lmdb_dataset(options: Any) -> None:
+    os.makedirs(options.log_dir, exist_ok=True)
+    logger = get_logger(out_file=os.path.join(options.log_dir, options.log_name))
 
-    opt = parser.parse_args()
+    dataset_processors = [
+        SyntheticDatasetProcessor(logger=logger),
+        CyrillicDatasetProcessor(logger=logger),
+        HKRDatasetProcessor(logger=logger)
+    ]
 
-    data_dir = opt.out_dir
-    intermediate_dir = "merged"
-    out_dir = "lmdb"
     image_dir = "img"
-    os.makedirs(os.path.join(data_dir, intermediate_dir, image_dir), exist_ok=True)
+    os.makedirs(options.out_dir, exist_ok=True)
 
-    datasets_list = opt.datasets_list
-    merge_datasets(data_dir=data_dir, img_dir=image_dir, out_dir=intermediate_dir, datasets_list=datasets_list)
-    char_set = "".join(set("".join(charsets[dataset_name] for dataset_name in datasets_list)))
-
-    for file_name in os.listdir(os.path.join(data_dir, intermediate_dir)):
-        if not (file_name.startswith("gt_") and file_name.endswith(".txt")):
+    for dataset_processor in dataset_processors:
+        if dataset_processor.dataset_name not in options.datasets_list:
             continue
 
-        stage = file_name[3:-4]
-        output_path = os.path.join(data_dir, out_dir, stage)
-        os.makedirs(output_path, exist_ok=True)
-        create_dataset(input_path=os.path.join(data_dir, intermediate_dir),
-                       gt_file=os.path.join(data_dir, intermediate_dir, f"gt_{stage}.txt"),
-                       output_path=output_path,
-                       char_set=char_set)
-    shutil.rmtree(os.path.join(data_dir, intermediate_dir))
+        logger.info("=" * 100)
+        logger.info(f"Processing {dataset_processor.dataset_name} dataset")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.makedirs(os.path.join(tmpdir, image_dir))
+            dataset_processor.process_dataset(tmpdir, image_dir, f"{dataset_processor.dataset_name}_gt.txt")
+
+            for gt_file_name in os.listdir(tmpdir):
+                if not gt_file_name.endswith("gt.txt"):
+                    continue
+
+                gt_prefix = gt_file_name.split("_")[0]
+                subdataset_dir = os.path.join(options.out_dir, gt_prefix, dataset_processor.dataset_name)
+                os.makedirs(subdataset_dir)
+                logger.info(f"Create LMDB {gt_prefix}")
+                create_dataset(tmpdir, os.path.join(tmpdir, gt_file_name), subdataset_dir, dataset_processor.charset, logger)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--datasets_list', nargs='+', required=True, help='List of datasets names, e.g. hkr cyrillic')
+    parser.add_argument('--out_dir', type=str, help='Directory for saving dataset', required=True)
+    parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
+    parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
+
+    opt = parser.parse_args()
+    create_lmdb_dataset(opt)
