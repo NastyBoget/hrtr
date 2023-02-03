@@ -1,73 +1,67 @@
 """ modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/train.py """
+import argparse
+import logging
 import os
-import shutil
-import sys
-import time
 import random
 import string
-import argparse
+import sys
+import time
+from typing import Any, Tuple
 
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn.init as init
 import torch.optim as optim
 import torch.utils.data
-import numpy as np
+from torch.nn.modules.loss import _Loss
+from torch.optim import Optimizer
 
-from src.model.utils import CTCLabelConverter, AttnLabelConverter, Averager
-from src.dataset.lmdb_dataset import hierarchical_dataset
-from dataset.batch_balanced_dataset import BatchBalancedDataset
-from dataset.preprocessing.resize_normalization import AlignCollate
+from src.dataset.batch_balanced_dataset import BatchBalancedDataset
+from src.dataset.hierarchical_dataset import hierarchical_dataset
+from src.dataset.preprocessing.resize_normalization import AlignCollate
 from src.model.model import Model
+from src.model.utils.averager import Averager
+from src.model.utils.label_converting import CTCLabelConverter, AttnLabelConverter, Converter
+from src.model.utils.metrics import string_accuracy, cer, wer
+from src.process_datasets.processors_list import get_processors_list
 from src.test import validation
-from src.model.early_stopping import EarlyStopping
-from src.params import charsets
+from src.utils.logger import get_logger
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Saved models for English https://drive.google.com/drive/folders/1h6edewgRUTJPzI81Mn0eSsqItnk9RMeO
 
 
-def train(opt):
-    """ dataset preparation """
-    if not opt.data_filtering_off:
-        print('Filtering the images containing characters which are not in opt.character')
-        print('Filtering the images whose label is longer than opt.batch_max_length')
+def get_charset(opt: Any, logger: logging.Logger) -> str:
+    processors = get_processors_list(logger)
+    return "".join(sorted(list(set("".join(p.charset for p in processors if p.dataset_name in opt.select_data)))))
 
-    opt.character = "".join(sorted(list(set("".join(charsets[dataset_name] for dataset_name in opt.datasets_list)))))
-    
+
+def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset, torch.utils.data.DataLoader]:
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
-    train_dataset = BatchBalancedDataset(opt)
+    if opt.lang != "en":
+        opt.character = get_charset(opt, logger)
+        opt.character = opt.character if opt.sensitive else "".join(list(set(opt.character.lower())))
 
-    log = open(f'./saved_models/{opt.exp_name}/log_dataset.txt', 'a')
-    AlignCollate_valid = AlignCollate(img_h=opt.imgH, img_w=opt.imgW, keep_ratio_with_pad=opt.PAD)
-    valid_dataset, valid_dataset_log = hierarchical_dataset(root=opt.valid_data, opt=opt)
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=opt.batch_size,
-        shuffle=True,  # 'True' to check training progress with validation function.
-        num_workers=int(opt.workers),
-        collate_fn=AlignCollate_valid, pin_memory=True)
-    log.write(valid_dataset_log)
-    print('-' * 80)
-    log.write('-' * 80 + '\n')
-    log.close()
+    train_dataset = BatchBalancedDataset(opt, logger)
+    align_collate_valid = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.PAD)
+    val_dataset = hierarchical_dataset(root=opt.valid_data, opt=opt, logger=logger)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.workers), collate_fn=align_collate_valid, pin_memory=True)  # noqa
+    return train_dataset, val_loader
 
-    if 'CTC' in opt.Prediction:
-        opt.num_class = len(opt.character) + 1
-    else:
-        opt.num_class = len(opt.character) + 2
 
-    if opt.rgb:
-        opt.input_channel = 3
+def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
+    opt.num_class = len(opt.character) + 1 if 'CTC' in opt.Prediction else len(opt.character) + 2
+    opt.input_channel = 3 if opt.rgb else 1
     model = Model(opt)
-    print('Model input parameters', opt.img_h, opt.img_w, opt.num_fiducial, opt.input_channel, opt.output_channel,
-          opt.hidden_size, opt.num_class, opt.batch_max_length, opt.Transformation, opt.FeatureExtraction,
-          opt.SequenceModeling, opt.Prediction)
+    logger.info(f'Model input parameters: {opt.img_h}, {opt.img_w}, {opt.num_fiducial}, {opt.input_channel}, {opt.output_channel}, {opt.hidden_size},'
+                f' {opt.num_class}, {opt.batch_max_length}, {opt.Transformation}, {opt.FeatureExtraction}, {opt.SequenceModeling}, {opt.Prediction}')
 
     # weight initialization
     for name, param in model.named_parameters():
         if 'localization_fc2' in name:
-            print(f'Skip {name} as it is already initialized')
+            logger.info(f'Skip {name} as it is already initialized')
             continue
         try:
             if 'bias' in name:
@@ -77,37 +71,29 @@ def train(opt):
         except Exception as e:  # for batchnorm.
             if 'weight' in name:
                 param.data.fill_(1)
-            continue
 
-    # data parallel for multi-GPU
     model = torch.nn.DataParallel(model)
     if opt.saved_model != '':
-        print(f'Loading pretrained model from {opt.saved_model}')
+        logger.info(f'Loading pretrained model from {opt.saved_model}')
         if opt.FT:
             model.load_state_dict(torch.load(opt.saved_model, map_location=device), strict=False)
         else:
             model.load_state_dict(torch.load(opt.saved_model))
 
-    # if opt.lang == "en":
-    #     model.module.reset_output(charset=char_set)
-    #     opt.character = char_set
+    if opt.lang == "en":
+        char_set = get_charset(opt, logger)
+        model.module.reset_output(charset=char_set)  # replace last layer to fine-tune english model for russian
+        opt.character = char_set if opt.sensitive else "".join(list(set(char_set.lower())))
 
     model.train()
     model = model.to(device)
-    print(model)
-    """ model configuration """
-    if 'CTC' in opt.Prediction:
-        converter = CTCLabelConverter(opt.character)
-    else:
-        converter = AttnLabelConverter(opt.character)
+    return model
 
-    """ setup loss """
-    if 'CTC' in opt.Prediction:
-        criterion = torch.nn.CTCLoss(zero_infinity=True).to(device)
-    else:
-        criterion = torch.nn.CrossEntropyLoss(ignore_index=0).to(device)  # ignore [GO] token = ignore index 0
-    # loss averager
-    loss_avg = Averager()
+
+def get_training_utils(logger: logging.Logger, model: torch.nn.DataParallel, opt: Any) -> Tuple[Converter, _Loss, Averager, Optimizer]:
+    converter = CTCLabelConverter(opt.character) if 'CTC' in opt.Prediction else AttnLabelConverter(opt.character)
+    criterion = torch.nn.CTCLoss(zero_infinity=True).to(device) if 'CTC' in opt.Prediction else torch.nn.CrossEntropyLoss(ignore_index=0).to(device)
+    loss_averager = Averager()
 
     # filter that only require gradient decent
     filtered_parameters = []
@@ -115,63 +101,38 @@ def train(opt):
     for p in filter(lambda p: p.requires_grad, model.parameters()):
         filtered_parameters.append(p)
         params_num.append(np.prod(p.size()))
-    print('Trainable params num: ', sum(params_num))
-    # [print(name, p.numel()) for name, p in filter(lambda p: p[1].requires_grad, model.named_parameters())]
+    logger.info(f'Trainable params num: {sum(params_num)}')
+    optimizer = optim.Adam(filtered_parameters, lr=opt.lr, betas=(opt.beta1, 0.999)) if opt.adam else optim.Adadelta(filtered_parameters, lr=opt.lr, rho=opt.rho, eps=opt.eps)  # noqa
 
-    # setup optimizer
-    if opt.adam:
-        optimizer = optim.Adam(filtered_parameters, lr=opt.lr, betas=(opt.beta1, 0.999))
-    else:
-        optimizer = optim.Adadelta(filtered_parameters, lr=opt.lr, rho=opt.rho, eps=opt.eps)
-    print("Optimizer: ")
-    print(optimizer)
+    logger.info('---------------------------------------- Options ----------------------------------------')
+    args = vars(opt)
+    for k, v in args.items():
+        logger.info(f'{str(k)}: {str(v)}')
+    logger.info('-----------------------------------------------------------------------------------------')
+    return converter, criterion, loss_averager, optimizer
 
-    """ final options """
-    with open(f'./saved_models/{opt.exp_name}/opt.txt', 'a') as opt_file:
-        opt_log = '------------ Options -------------\n'
-        args = vars(opt)
-        for k, v in args.items():
-            opt_log += f'{str(k)}: {str(v)}\n'
-        opt_log += '---------------------------------------\n'
-        print(opt_log)
-        opt_file.write(opt_log)
 
-    """ start training """
+def train(opt: Any, logger: logging.Logger) -> None:
+    train_dataset, val_loader = prepare_data(opt, logger)
+    model = load_model(opt, logger)
+    converter, criterion, loss_averager, optimizer = get_training_utils(logger, model, opt)
+
     start_iter = 0
     if opt.saved_model != '':
         try:
             start_iter = int(opt.saved_model.split('_')[-1].split('.')[0])
-            print(f'continue to train, start_iter: {start_iter}')
+            logger.info(f'Continue to train, start_iter: {start_iter}')
         except:
             pass
 
-    start_time = time.time()
-    best_accuracy = -1
-    best_cer = np.inf
-    iteration = start_iter
+    start_time, best_accuracy, best_cer, iteration, best_loss, loss_increase_num = time.time(), -1, np.inf, start_iter, np.inf, 0
 
-    # ----------------------------------------------------------------------------------------
-    
-    # Initialize the early_stopping object
-    early_stopping = EarlyStopping(patience=opt.patience, verbose=True, path=f'./saved_models/{opt.exp_name}/'
-                                                                             f'checkpoint-seed{opt.manualSeed}.pth')
-    
-    # Debug information.
     n_train_samples = len(train_dataset.data_loader_list[0].dataset)
-    p1 = f"Number of training samples: {n_train_samples}"
     iter_per_epoch = n_train_samples // opt.batch_size
     n_epochs = opt.num_iter // iter_per_epoch
-    p2 = f"Number of epochs: {n_epochs}, iter per epoch: {iter_per_epoch}"
-    epoch = 0
-
-    # Overwrite opt.valInterval with the number of iterations per epoch.
+    logger.info(f"Number of training samples: {n_train_samples}, number of epochs: {n_epochs}, iter per epoch: {iter_per_epoch}")
     opt.valInterval = iter_per_epoch
-    
-    # Start logging early stopping information.
-    valid_log_fname = f'./saved_models/{opt.exp_name}/log_early.txt'
-    early_stopping.log(p1 + "\n" + p2 + "\n", valid_log_fname)
-    
-    # ----------------------------------------------------------------------------------------
+    epoch = 0
 
     while epoch < n_epochs:
     
@@ -195,133 +156,120 @@ def train(opt):
         cost.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), opt.grad_clip)  # gradient clipping with 5 (Default)
         optimizer.step()
-
-        loss_avg.add(cost)
+        loss_averager.add(cost)
 
         # validation part
-        if (iteration + 1) % opt.valInterval == 0 or iteration == 0:  # To see training progress, we also conduct validation when 'iteration == 0'
+        if (iteration + 1) % opt.valInterval == 0 or iteration == 0:
             elapsed_time = time.time() - start_time
-            # for log
-            with open(f'./saved_models/{opt.exp_name}/log_train.txt', 'a') as log:
-                model.eval()
-                with torch.no_grad():
-                    valid_loss, current_accuracy, current_cer, current_wer, preds, confidence_score, labels, infer_time, length_of_data = validation(
-                        model, criterion, valid_loader, converter, opt)
-                model.train()
+            model.eval()
+            with torch.no_grad():
+                valid_loss, label_list, prediction_list, confidence_score_list = validation(model, criterion, val_loader, converter, opt, logger)
+            model.train()
+            current_accuracy, current_cer, current_wer = string_accuracy(prediction_list, label_list), cer(prediction_list, label_list), wer(prediction_list, label_list)  # noqa
 
-                # training loss and validation loss
-                train_loss = loss_avg.val()
-                loss_log = f'[{iteration+1}/{opt.num_iter}] Train loss: {train_loss:0.5f}, Valid loss: {valid_loss:0.5f}, Elapsed_time: {elapsed_time:0.5f}'
-                loss_avg.reset()
+            # training loss and validation loss
+            train_loss = loss_averager.val()
+            logger.info(f'[{iteration + 1}/{opt.num_iter}] Train loss: {train_loss:0.5f}, valid loss: {valid_loss:0.5f}, elapsed time: {elapsed_time:0.5f}')
+            loss_averager.reset()
+            logger.info(f'{"Current accuracy":17s}: {current_accuracy:0.3f}, {"current CER":17s}: {current_cer:0.2f}')
+            best_accuracy = current_accuracy if current_accuracy > best_accuracy else best_accuracy
+            # keep best cer model (on valid dataset)
+            if current_cer < best_cer:
+                best_cer = current_cer
+                logger.info("Save model with best CER")
+                torch.save(model.state_dict(), os.path.join(opt.out_dir, 'best_cer.pth'))
+            logger.info(f'{"Best accuracy":17s}: {best_accuracy:0.3f}, {"Best CER":17s}: {best_cer:0.2f}')
 
-                current_model_log = f'{"Current_accuracy":17s}: {current_accuracy:0.3f}, {"Current_cer":17s}: {current_cer:0.2f}'
-
-                # keep best accuracy model (on valid dataset)
-                if current_accuracy > best_accuracy:
-                    best_accuracy = current_accuracy
-                    torch.save(model.state_dict(), f'./saved_models/{opt.exp_name}/best_accuracy.pth')
-                if current_cer < best_cer:
-                    best_cer = current_cer
-                    torch.save(model.state_dict(), f'./saved_models/{opt.exp_name}/best_cer.pth')
-                best_model_log = f'{"Best_accuracy":17s}: {best_accuracy:0.3f}, {"Best_cer":17s}: {best_cer:0.2f}'
-
-                loss_model_log = f'{loss_log}\n{current_model_log}\n{best_model_log}'
-                print(loss_model_log)
-                log.write(loss_model_log + '\n')
-
-                # show some predicted results
-                dashed_line = '-' * 80
-                head = f'{"Ground Truth":25s} | {"Prediction":25s} | Confidence Score & T/F'
-                predicted_result_log = f'{dashed_line}\n{head}\n{dashed_line}\n'
-                for gt, pred, confidence in zip(labels[:5], preds[:5], confidence_score[:5]):
-                    if 'Attn' in opt.Prediction:
-                        gt = gt[:gt.find('[s]')]
-                        pred = pred[:pred.find('[s]')]
-
-                    predicted_result_log += f'{gt:25s} | {pred:25s} | {confidence:0.4f}\t{str(pred == gt)}\n'
-                predicted_result_log += f'{dashed_line}'
-                print(predicted_result_log)
-                log.write(predicted_result_log + '\n')
+            # show some predicted results
+            logger.info('-' * 84)
+            logger.info(f'{"Ground Truth":^25s} | {"Prediction":^25s} | {"Confidence Score":^20s} | {"T/F":^5s}')
+            logger.info('-' * 84)
+            for gt, pred, confidence in zip(label_list[:5], prediction_list[:5], confidence_score_list[:5]):
+                logger.info(f'{gt:^25s} | {pred:^25s} | {f"{confidence:0.4f}":^20s} | {str(pred == gt):^5s}')
+            logger.info('-' * 84)
             
-            # Check early stopping at each epoch.
+            # Check loss decrease at each epoch.
             if (iteration + 1) % iter_per_epoch == 0 or iteration == 0:
-                
-                valid_log = f"Iter: [{iteration+1}/{opt.num_iter}]. Epoch: [{epoch}/{n_epochs}]. Training loss: {train_loss}."
-              
-                # early_stopping needs the validation loss to check if it has decreased, 
-                # and if it has, it will make a checkpoint of the current model
-                early_stopping(valid_loss, model, valid_log, valid_log_fname)
+                logger.info(f"Iter: [{iteration + 1}/{opt.num_iter}]. Epoch: [{epoch}/{n_epochs}]. Training loss: {train_loss}.")
+                if valid_loss < best_loss:
+                    best_loss = valid_loss
+                    logger.info(f"Validation loss decreased ({best_loss:0.5f} -> {valid_loss:0.5f}), saving model...")
+                    torch.save(model.state_dict(), os.path.join(opt.out_dir, f'best_loss.pth'))
+                    loss_increase_num = 0
+                else:
+                    loss_increase_num += 1
+                    logger.info(f"Validation loss increased {loss_increase_num}/{opt.patience}")
+                    if loss_increase_num > opt.patience:
+                        logger.info("Stop training (loss doesn't decrease)")
+                        break
                 epoch += 1
               
-        # save model per 1e+5 iter.
         if (iteration + 1) % 5e+4 == 0:
-            torch.save(
-                model.state_dict(), f'./saved_models/{opt.exp_name}/iter_{iteration+1}.pth')
+            logger.info(f"Iteration {iteration + 1}, saving model...")
+            torch.save(model.state_dict(), os.path.join(opt.out_dir, f'iter_{iteration + 1}.pth'))
 
         if (iteration + 1) == opt.num_iter:
-            print('end the training')
+            logger.info('End of the training')
             sys.exit()
         iteration += 1
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--datasets_list', nargs='+', required=True)
-    parser.add_argument('--lang', type=str, help='language of the loaded model', default='en')
-    parser.add_argument('--exp_name', help='Where to store logs and models')
-    parser.add_argument('--train_data', required=True, help='path to training dataset')
-    parser.add_argument('--valid_data', required=True, help='path to validation dataset')
-    parser.add_argument('--manualSeed', type=int, default=1111, help='for random seed setting')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=4)
-    parser.add_argument('--batch_size', type=int, default=192, help='input batch size')
-    parser.add_argument('--num_iter', type=int, default=300180, help='number of iterations to train for')
+    parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
+    parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
+    parser.add_argument('--out_dir', help='Where to store models', required=True)
+    parser.add_argument('--train_data', type=str, help='Path to training dataset', required=True)
+    parser.add_argument('--valid_data', type=str, help='Path to validation dataset', required=True)
+    parser.add_argument('--lang', type=str, help='Language of the loaded model', default='en')
+    parser.add_argument('--manualSeed', type=int, default=1111, help='For random seed setting')
+    parser.add_argument('--workers', type=int, help='Number of data loading workers', default=0)
+    parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
+    parser.add_argument('--num_iter', type=int, default=300000, help='Number of iterations to train for')
     parser.add_argument('--valInterval', type=int, default=2000, help='Interval between each validation')
-    parser.add_argument('--saved_model', default='', help="path to model to continue training")
-    parser.add_argument('--FT', action='store_true', help='whether to do fine-tuning')
+    parser.add_argument('--saved_model', type=str, default='', help="Path to model to continue training")
+    parser.add_argument('--FT', action='store_true', help='Whether to do fine-tuning')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is Adadelta)')
-    parser.add_argument('--lr', type=float, default=1, help='learning rate, default=1.0 for Adadelta')
-    parser.add_argument('--beta1', type=float, default=0.9, help='beta1 for adam. default=0.9')
-    parser.add_argument('--rho', type=float, default=0.95, help='decay rate rho for Adadelta. default=0.95')
-    parser.add_argument('--eps', type=float, default=1e-8, help='eps for Adadelta. default=1e-8')
-    parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping value. default=5')
+    parser.add_argument('--lr', type=float, default=1, help='Learning rate, default=1.0 for Adadelta')
+    parser.add_argument('--beta1', type=float, default=0.9, help='Beta1 for adam, default=0.9')
+    parser.add_argument('--rho', type=float, default=0.95, help='Decay rate rho for Adadelta, default=0.95')
+    parser.add_argument('--eps', type=float, default=1e-8, help='Eps for Adadelta, default=1e-8')
+    parser.add_argument('--grad_clip', type=float, default=5, help='Gradient clipping value, default=5')
+    parser.add_argument('--patience', type=int, default=10, help='Patience for the early stopping')
+    parser.add_argument('--write_errors', action='store_true', help='Write model\'s errors to the log file')
 
     # Data processing
-    parser.add_argument('--select_data', type=str, default='MJ-ST',
-                        help='select training data (default is MJ-ST, which means MJ and ST used as training data)')
-    parser.add_argument('--batch_ratio', type=str, default='0.5-0.5', help='assign ratio for each selected data in the batch')
-    parser.add_argument('--total_data_usage_ratio', type=str, default='1.0',
-                        help='total data usage ratio, this ratio is multiplied to total number of data.')
-    parser.add_argument('--batch_max_length', type=int, default=25, help='maximum-label-length')
-    parser.add_argument('--imgH', type=int, default=32, help='the height of the input image')
-    parser.add_argument('--imgW', type=int, default=100, help='the width of the input image')
-    parser.add_argument('--rgb', action='store_true', help='use rgb input')
-    parser.add_argument('--sensitive', action='store_true', help='for sensitive character mode')
-    parser.add_argument('--PAD', action='store_true', help='whether to keep ratio then pad for image resize')
-    parser.add_argument('--data_filtering_off', action='store_true', help='for data_filtering_off mode')
+    parser.add_argument('--select_data', type=str, help='Select training data from datasets separated by - e.g. hkr-synthetic', required=True)
+    parser.add_argument('--batch_ratio', type=str, help='Assign ratio for each selected data in the batch e.g. 0.5-0.5', required=True)
+    parser.add_argument('--total_data_usage_ratio', type=str, default='1.0', help='Total data usage ratio, this ratio is multiplied to total number of data.')
+    parser.add_argument('--batch_max_length', type=int, default=40, help='Maximum label length')
+    parser.add_argument('--img_h', type=int, default=32, help='The height of the input image')
+    parser.add_argument('--img_w', type=int, default=100, help='The width of the input image')
+    parser.add_argument('--rgb', action='store_true', help='Use rgb input')
+    parser.add_argument('--sensitive', action='store_true', help='For sensitive character mode')
+    parser.add_argument('--PAD', action='store_true', help='Whether to keep ratio then pad for image resize')
+    parser.add_argument('--data_filtering_off', action='store_true', help='For data_filtering_off mode')
+    parser.add_argument('--augmentation', action='store_true', help='Use augmentation during training')
+    parser.add_argument('--preprocessing', action='store_true', help='Preprocess training data')
 
     # Model Architecture
     parser.add_argument('--Transformation', type=str, required=True, help='Transformation stage. None|TPS')
     parser.add_argument('--FeatureExtraction', type=str, required=True, help='FeatureExtraction stage. VGG|RCNN|ResNet')
     parser.add_argument('--SequenceModeling', type=str, required=True, help='SequenceModeling stage. None|BiLSTM')
     parser.add_argument('--Prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
-    parser.add_argument('--num_fiducial', type=int, default=20, help='number of fiducial points of TPS-STN')
-    parser.add_argument('--input_channel', type=int, default=1, help='the number of input channel of Feature extractor')
-    parser.add_argument('--output_channel', type=int, default=512, help='the number of output channel of Feature extractor')
-    parser.add_argument('--hidden_size', type=int, default=256, help='the size of the LSTM hidden state')
-    parser.add_argument('--patience', type=int, default=5, help='patience for the early stopping')
+    parser.add_argument('--num_fiducial', type=int, default=20, help='Number of fiducial points of TPS-STN')
+    parser.add_argument('--input_channel', type=int, default=1, help='The number of input channel of Feature extractor')
+    parser.add_argument('--output_channel', type=int, default=512, help='The number of output channel of Feature extractor')
+    parser.add_argument('--hidden_size', type=int, default=256, help='The size of the LSTM hidden state')
 
     opt = parser.parse_args()
 
-    if not opt.exp_name:
-        opt.exp_name = f'{opt.Transformation}-{opt.FeatureExtraction}-{opt.SequenceModeling}-{opt.Prediction}'
-        opt.exp_name += f'-Seed{opt.manualSeed}'
+    os.makedirs(opt.log_dir, exist_ok=True)
+    logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
+    os.makedirs(opt.out_dir, exist_ok=True)
 
-    if os.path.isdir(f'./saved_models/{opt.exp_name}'):
-        shutil.rmtree(f'./saved_models/{opt.exp_name}')
-    os.makedirs(f'./saved_models/{opt.exp_name}')
-
-    if opt.sensitive and opt.lang == "en":
-        opt.character = string.printable[:-6]  # same with ASTER setting (use 94 char).
+    if opt.lang == "en":
+        opt.character = string.printable[:-6] if opt.sensitive else "".join(list(set(string.printable[:-6].lower())))
 
     # Seed and GPU setting
     random.seed(opt.manualSeed)
@@ -333,9 +281,9 @@ if __name__ == '__main__':
     cudnn.deterministic = True
     opt.num_gpu = torch.cuda.device_count()
     if opt.num_gpu > 1:
-        print('------ Use multi-GPU setting ------')
-        print('if you stuck too long time with multi-GPU setting, try to set --workers 0')
+        logger.info('------ Use multi-GPU setting ------')
+        logger.info('if you stuck too long time with multi-GPU setting, try to set --workers 0')
         opt.workers = opt.workers * opt.num_gpu
         opt.batch_size = opt.batch_size * opt.num_gpu
 
-    train(opt)
+    train(opt, logger)

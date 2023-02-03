@@ -11,7 +11,7 @@ from tqdm import tqdm
 from src.utils.lines_segmenter import LinesSegmenter
 from dataset.preprocessing.resize_normalization import AlignCollate
 from src.model.model import Model
-from src.model.utils import AttnLabelConverter, CTCLabelConverter
+from model.utils.label_converting import AttnLabelConverter, CTCLabelConverter
 from src.params import ModelOptions
 
 
@@ -28,7 +28,7 @@ class HRTReader:
         self.htr_model.load_state_dict(torch.load(self.opt.saved_model, map_location=device))
         self.htr_model.eval()
 
-        self.align_converter = AlignCollate(img_h=self.opt.imgH, img_w=self.opt.imgW, keep_ratio_with_pad=self.opt.PAD)
+        self.align_converter = AlignCollate(img_h=self.opt.img_h, img_w=self.opt.img_w, keep_ratio_with_pad=self.opt.PAD)
         if self.opt.Prediction == "Attn":
             self.label_converter = AttnLabelConverter(self.opt.character)
         else:

@@ -1,8 +1,21 @@
+from abc import ABC, abstractmethod
+
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class CTCLabelConverter(object):
+class Converter(ABC):
+
+    @abstractmethod
+    def encode(self, text, batch_max_length):
+        pass
+
+    @abstractmethod
+    def decode(self, text_index, length):
+        pass
+
+
+class CTCLabelConverter(Converter):
     """ Convert between text-label and text-index """
 
     def __init__(self, character):
@@ -36,7 +49,7 @@ class CTCLabelConverter(object):
             text = list(t)
             text = [self.dict[char] for char in text]
             batch_text[i][:len(text)] = torch.LongTensor(text)
-        return (batch_text.to(device), torch.IntTensor(length).to(device))
+        return batch_text.to(device), torch.IntTensor(length).to(device)
 
     def decode(self, text_index, length):
         """ convert text-index into text-label. """
@@ -54,7 +67,7 @@ class CTCLabelConverter(object):
         return texts
 
 
-class AttnLabelConverter(object):
+class AttnLabelConverter(Converter):
     """ Convert between text-label and text-index """
 
     def __init__(self, character):
@@ -102,27 +115,3 @@ class AttnLabelConverter(object):
             text = ''.join([self.character[i] for i in text_index[index, :]])
             texts.append(text)
         return texts
-
-
-class Averager(object):
-    """Compute average for torch.Tensor, used for loss average."""
-
-    def __init__(self):
-        self.n_count = 0
-        self.sum = 0
-
-    def add(self, v):
-        count = v.data.numel()
-        v = v.data.sum()
-        self.n_count += count
-        self.sum += v
-
-    def reset(self):
-        self.n_count = 0
-        self.sum = 0
-
-    def val(self):
-        res = 0
-        if self.n_count != 0:
-            res = self.sum / float(self.n_count)
-        return res

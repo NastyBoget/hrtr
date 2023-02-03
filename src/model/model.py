@@ -35,8 +35,8 @@ class Model(nn.Module):
             self.FeatureExtraction = ResNet_FeatureExtractor(opt.input_channel, opt.output_channel)
         else:
             raise Exception('No FeatureExtraction module specified')
-        self.FeatureExtraction_output = opt.output_channel  # int(imgH/16-1) * 512
-        self.AdaptiveAvgPool = nn.AdaptiveAvgPool2d((None, 1))  # Transform final (imgH/16-1) -> 1
+        self.FeatureExtraction_output = opt.output_channel  # int(img_h/16-1) * 512
+        self.AdaptiveAvgPool = nn.AdaptiveAvgPool2d((None, 1))  # Transform final (img_h/16-1) -> 1
 
         if opt.SequenceModeling == 'BiLSTM':
             self.SequenceModeling = nn.Sequential(

@@ -11,9 +11,9 @@ class ModelOptions:
                  Prediction: str = "Attn",
                  workers: int = 0,
                  batch_size: int = 192,
-                 batch_max_length: int = 25,
-                 imgH: int = 32,
-                 imgW: int = 100,
+                 batch_max_length: int = 40,
+                 img_h: int = 32,
+                 img_w: int = 100,
                  rgb: bool = False,
                  character: str = "",
                  sensitive: bool = True,
@@ -30,22 +30,15 @@ class ModelOptions:
         self.workers = workers
         self.batch_size = batch_size
         self.batch_max_length = batch_max_length
-        self.imgH = imgH
-        self.imgW = imgW
+        self.img_h = img_h
+        self.img_w = img_w
         self.rgb = rgb
-        if self.rgb:
-            self.input_channel = 3
-        else:
-            self.input_channel = 1
+        self.input_channel = 3 if self.rgb else 1
         self.character = character
-        if Prediction == "Attn":
-            self.num_class = len(self.character) + 2
-        else:
-            self.num_class = len(self.character) + 1
+        self.num_class = len(self.character) + 2 if Prediction == "Attn" else len(self.character) + 1
         self.sensitive = sensitive
         self.PAD = PAD
         self.data_filtering_off = data_filtering_off
         self.num_fiducial = num_fiducial
         self.output_channel = output_channel
         self.hidden_size = hidden_size
-        self.num_gpu = torch.cuda.device_count()

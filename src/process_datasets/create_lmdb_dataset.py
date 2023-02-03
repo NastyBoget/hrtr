@@ -24,9 +24,7 @@ import numpy as np
 import pandas as pd
 from lmdb import Environment
 
-from process_datasets.cyrillic_processor import CyrillicDatasetProcessor
-from process_datasets.hkr_processor import HKRDatasetProcessor
-from process_datasets.synthetic_processor import SyntheticDatasetProcessor
+from process_datasets.processors_list import get_processors_list
 from utils.logger import get_logger
 
 
@@ -107,12 +105,7 @@ def create_dataset(input_path: str, gt_file: str, output_path: str, char_set: st
 def create_lmdb_dataset(options: Any) -> None:
     os.makedirs(options.log_dir, exist_ok=True)
     logger = get_logger(out_file=os.path.join(options.log_dir, options.log_name))
-
-    dataset_processors = [
-        SyntheticDatasetProcessor(logger=logger),
-        CyrillicDatasetProcessor(logger=logger),
-        HKRDatasetProcessor(logger=logger)
-    ]
+    dataset_processors = get_processors_list(logger)
 
     image_dir = "img"
     os.makedirs(options.out_dir, exist_ok=True)

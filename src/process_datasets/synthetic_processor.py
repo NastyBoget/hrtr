@@ -19,7 +19,7 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
         super().__init__()
         # first https://at.ispras.ru/owncloud/index.php/s/5kZRtMH0Uis2PyW/download
         # second https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
-        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/5kZRtMH0Uis2PyW/download"
+        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download"
         self.logger = logger
 
     @property
