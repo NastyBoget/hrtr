@@ -8,6 +8,9 @@ import six
 from PIL import Image
 from torch.utils.data import Dataset
 
+from src.dataset.augmentation.augmentation import augment
+from src.dataset.preprocessing.preprocessing import preprocess
+
 
 class LmdbDataset(Dataset):
 
@@ -68,6 +71,11 @@ class LmdbDataset(Dataset):
 
             if not self.opt.sensitive:
                 label = label.lower()
+
+            if hasattr(self.opt, "augmentation") and self.opt.augmentation:
+                img = augment(img)
+            if hasattr(self.opt, "preprocessing") and self.opt.preprocessing:
+                img = preprocess(img)
 
             out_of_char = f'[^{self.opt.character}]'
             label = re.sub(out_of_char, '', label)

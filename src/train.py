@@ -185,7 +185,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
             logger.info(f'{"Ground Truth":^25s} | {"Prediction":^25s} | {"Confidence Score":^20s} | {"T/F":^5s}')
             logger.info('-' * 84)
             for gt, pred, confidence in zip(label_list[:5], prediction_list[:5], confidence_score_list[:5]):
-                logger.info(f'{gt:^25s} | {pred:^25s} | {f"{confidence:0.4f}":^20s} | {str(pred == gt):^5s}')
+                logger.info(f'{gt[:25]:^25s} | {pred[:25]:^25s} | {f"{confidence:0.4f}":^20s} | {str(pred == gt):^5s}')
             logger.info('-' * 84)
             
             # Check loss decrease at each epoch.
