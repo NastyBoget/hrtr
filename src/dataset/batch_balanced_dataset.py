@@ -18,10 +18,10 @@ class BatchBalancedDataset(object):
         the 50% of the batch is filled with MJ dataset and the other 50% of the batch is filled with ST dataset.
         """
         logger.info('=' * 100)
-        logger.info(f'Dataset_root: {opt.train_data}\nopt.select_data: {opt.select_data}\nopt.batch_ratio: {opt.batch_ratio}')
+        logger.info(f'Dataset_root: {opt.train_data}; opt.select_data: {opt.select_data}; opt.batch_ratio: {opt.batch_ratio}')
         assert len(opt.select_data) == len(opt.batch_ratio)
 
-        align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.PAD)
+        align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
         self.data_loader_list = []
         self.dataloader_iter_list = []
         batch_size_list = []

@@ -42,21 +42,21 @@ def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset
     opt.batch_ratio = opt.batch_ratio.split('-')
     if opt.lang != "en":
         opt.character = get_charset(opt, logger)
-        opt.character = opt.character if opt.sensitive else "".join(list(set(opt.character.lower())))
+    opt.character = opt.character if opt.sensitive else "".join(list(set(opt.character.lower())))
 
     train_dataset = BatchBalancedDataset(opt, logger)
-    align_collate_valid = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.PAD)
+    align_collate_valid = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
     val_dataset = hierarchical_dataset(root=opt.valid_data, opt=opt, logger=logger)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.workers), collate_fn=align_collate_valid, pin_memory=True)  # noqa
     return train_dataset, val_loader
 
 
 def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
-    opt.num_class = len(opt.character) + 1 if 'CTC' in opt.Prediction else len(opt.character) + 2
+    opt.num_class = len(opt.character) + 1 if 'CTC' in opt.prediction else len(opt.character) + 2
     opt.input_channel = 3 if opt.rgb else 1
     model = Model(opt)
     logger.info(f'Model input parameters: {opt.img_h}, {opt.img_w}, {opt.num_fiducial}, {opt.input_channel}, {opt.output_channel}, {opt.hidden_size},'
-                f' {opt.num_class}, {opt.batch_max_length}, {opt.Transformation}, {opt.FeatureExtraction}, {opt.SequenceModeling}, {opt.Prediction}')
+                f' {opt.num_class}, {opt.batch_max_length}, {opt.transformation}, {opt.feature_extraction}, {opt.sequence_modeling}, {opt.prediction}')
 
     # weight initialization
     for name, param in model.named_parameters():
@@ -75,7 +75,7 @@ def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
     model = torch.nn.DataParallel(model)
     if opt.saved_model != '':
         logger.info(f'Loading pretrained model from {opt.saved_model}')
-        if opt.FT:
+        if opt.ft:
             model.load_state_dict(torch.load(opt.saved_model, map_location=device), strict=False)
         else:
             model.load_state_dict(torch.load(opt.saved_model))
@@ -83,7 +83,6 @@ def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
     if opt.lang == "en":
         char_set = get_charset(opt, logger)
         model.module.reset_output(charset=char_set)  # replace last layer to fine-tune english model for russian
-        opt.character = char_set if opt.sensitive else "".join(list(set(char_set.lower())))
 
     model.train()
     model = model.to(device)
@@ -91,8 +90,8 @@ def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
 
 
 def get_training_utils(logger: logging.Logger, model: torch.nn.DataParallel, opt: Any) -> Tuple[Converter, _Loss, Averager, Optimizer]:
-    converter = CTCLabelConverter(opt.character) if 'CTC' in opt.Prediction else AttnLabelConverter(opt.character)
-    criterion = torch.nn.CTCLoss(zero_infinity=True).to(device) if 'CTC' in opt.Prediction else torch.nn.CrossEntropyLoss(ignore_index=0).to(device)
+    converter = CTCLabelConverter(opt.character) if 'CTC' in opt.prediction else AttnLabelConverter(opt.character)
+    criterion = torch.nn.CTCLoss(zero_infinity=True).to(device) if 'CTC' in opt.prediction else torch.nn.CrossEntropyLoss(ignore_index=0).to(device)
     loss_averager = Averager()
 
     # filter that only require gradient decent
@@ -131,7 +130,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
     iter_per_epoch = n_train_samples // opt.batch_size
     n_epochs = opt.num_iter // iter_per_epoch
     logger.info(f"Number of training samples: {n_train_samples}, number of epochs: {n_epochs}, iter per epoch: {iter_per_epoch}")
-    opt.valInterval = iter_per_epoch
+    opt.val_interval = iter_per_epoch
     epoch = 0
 
     while epoch < n_epochs:
@@ -142,7 +141,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
         text, length = converter.encode(labels, batch_max_length=opt.batch_max_length)
         batch_size = image.size(0)
 
-        if 'CTC' in opt.Prediction:
+        if 'CTC' in opt.prediction:
             preds = model(image, text)
             preds_size = torch.IntTensor([preds.size(1)] * batch_size)
             preds = preds.log_softmax(2).permute(1, 0, 2)
@@ -159,7 +158,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
         loss_averager.add(cost)
 
         # validation part
-        if (iteration + 1) % opt.valInterval == 0 or iteration == 0:
+        if (iteration + 1) % opt.val_interval == 0 or iteration == 0:
             elapsed_time = time.time() - start_time
             model.eval()
             with torch.no_grad():
@@ -222,13 +221,13 @@ if __name__ == '__main__':
     parser.add_argument('--train_data', type=str, help='Path to training dataset', required=True)
     parser.add_argument('--valid_data', type=str, help='Path to validation dataset', required=True)
     parser.add_argument('--lang', type=str, help='Language of the loaded model', default='en')
-    parser.add_argument('--manualSeed', type=int, default=1111, help='For random seed setting')
+    parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--workers', type=int, help='Number of data loading workers', default=0)
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
     parser.add_argument('--num_iter', type=int, default=300000, help='Number of iterations to train for')
-    parser.add_argument('--valInterval', type=int, default=2000, help='Interval between each validation')
+    parser.add_argument('--val_interval', type=int, default=2000, help='Interval between each validation')
     parser.add_argument('--saved_model', type=str, default='', help="Path to model to continue training")
-    parser.add_argument('--FT', action='store_true', help='Whether to do fine-tuning')
+    parser.add_argument('--ft', action='store_true', help='Whether to do fine-tuning')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is Adadelta)')
     parser.add_argument('--lr', type=float, default=1, help='Learning rate, default=1.0 for Adadelta')
     parser.add_argument('--beta1', type=float, default=0.9, help='Beta1 for adam, default=0.9')
@@ -247,16 +246,16 @@ if __name__ == '__main__':
     parser.add_argument('--img_w', type=int, default=100, help='The width of the input image')
     parser.add_argument('--rgb', action='store_true', help='Use rgb input')
     parser.add_argument('--sensitive', action='store_true', help='For sensitive character mode')
-    parser.add_argument('--PAD', action='store_true', help='Whether to keep ratio then pad for image resize')
+    parser.add_argument('--pad', action='store_true', help='Whether to keep ratio then pad for image resize')
     parser.add_argument('--data_filtering_off', action='store_true', help='For data_filtering_off mode')
     parser.add_argument('--augmentation', action='store_true', help='Use augmentation during training')
     parser.add_argument('--preprocessing', action='store_true', help='Preprocess training data')
 
     # Model Architecture
-    parser.add_argument('--Transformation', type=str, required=True, help='Transformation stage. None|TPS')
-    parser.add_argument('--FeatureExtraction', type=str, required=True, help='FeatureExtraction stage. VGG|RCNN|ResNet')
-    parser.add_argument('--SequenceModeling', type=str, required=True, help='SequenceModeling stage. None|BiLSTM')
-    parser.add_argument('--Prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
+    parser.add_argument('--transformation', type=str, required=True, help='Transformation stage. None|TPS')
+    parser.add_argument('--feature_extraction', type=str, required=True, help='Feature extraction stage. VGG|RCNN|ResNet')
+    parser.add_argument('--sequence_modeling', type=str, required=True, help='Sequence modeling stage. None|BiLSTM')
+    parser.add_argument('--prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
     parser.add_argument('--num_fiducial', type=int, default=20, help='Number of fiducial points of TPS-STN')
     parser.add_argument('--input_channel', type=int, default=1, help='The number of input channel of Feature extractor')
     parser.add_argument('--output_channel', type=int, default=512, help='The number of output channel of Feature extractor')
@@ -269,13 +268,13 @@ if __name__ == '__main__':
     os.makedirs(opt.out_dir, exist_ok=True)
 
     if opt.lang == "en":
-        opt.character = string.printable[:-6] if opt.sensitive else "".join(list(set(string.printable[:-6].lower())))
+        opt.character = string.printable[:-6]
 
     # Seed and GPU setting
-    random.seed(opt.manualSeed)
-    np.random.seed(opt.manualSeed)
-    torch.manual_seed(opt.manualSeed)
-    torch.cuda.manual_seed(opt.manualSeed)
+    random.seed(opt.manual_seed)
+    np.random.seed(opt.manual_seed)
+    torch.manual_seed(opt.manual_seed)
+    torch.cuda.manual_seed(opt.manual_seed)
 
     cudnn.benchmark = True
     cudnn.deterministic = True

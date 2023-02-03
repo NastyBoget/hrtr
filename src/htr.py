@@ -28,8 +28,8 @@ class HRTReader:
         self.htr_model.load_state_dict(torch.load(self.opt.saved_model, map_location=device))
         self.htr_model.eval()
 
-        self.align_converter = AlignCollate(img_h=self.opt.img_h, img_w=self.opt.img_w, keep_ratio_with_pad=self.opt.PAD)
-        if self.opt.Prediction == "Attn":
+        self.align_converter = AlignCollate(img_h=self.opt.img_h, img_w=self.opt.img_w, keep_ratio_with_pad=self.opt.pad)
+        if self.opt.prediction == "Attn":
             self.label_converter = AttnLabelConverter(self.opt.character)
         else:
             self.label_converter = CTCLabelConverter(self.opt.character)
@@ -47,7 +47,7 @@ class HRTReader:
         batch_max_length = 25
         text_for_pred = torch.LongTensor(1, batch_max_length + 1).fill_(0).to(device)
         img_tensor, label_tensor = self.align_converter([(img, text_for_pred)])
-        if self.opt.Prediction == "Attn":
+        if self.opt.prediction == "Attn":
             preds = self.htr_model(img_tensor, label_tensor, is_train=False)
             preds_size = torch.IntTensor([preds.size(1)] * 1)
             _, preds_index = preds.max(2)
@@ -76,8 +76,7 @@ class HRTReader:
 
 
 if __name__ == "__main__":
-    opt = ModelOptions(saved_model="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth",
-                       batch_size=1, Prediction="Attn")
+    opt = ModelOptions(saved_model="saved_models/TPS-ResNet-BiLSTM-Attn-Seed1-Rus-Kz-Synth.pth", prediction="Attn")
     htr_reader = HRTReader(opt)
 
     data_dir = "../data/random_data"
