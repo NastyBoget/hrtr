@@ -21,7 +21,7 @@ class Model(nn.Module):
 
         if opt.transformation == 'TPS':
             self.transformation = TPSSpatialTransformerNetwork(
-                F=opt.num_fiducial, i_size=(opt.img_h, opt.img_w), i_r_size=(opt.img_h, opt.img_w), i_channel_num=opt.input_channel
+                f=opt.num_fiducial, i_size=(opt.img_h, opt.img_w), i_r_size=(opt.img_h, opt.img_w), i_channel_num=opt.input_channel
             )
         else:
             print('No Transformation module specified')
