@@ -6,6 +6,7 @@ import zipfile
 
 import pandas as pd
 import wget
+from sklearn.model_selection import train_test_split
 
 from process_datasets.abstract_dataset_processor import AbstractDatasetProcessor
 
@@ -47,8 +48,10 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
             self.logger.info(f"{self.dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
-            df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
-            self.logger.info(f"{self.dataset_name} dataset length: train = {df.shape[0]}")
+            train_df, val_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=True)
+            train_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
+            val_df.to_csv(os.path.join(out_dir, f"val_{gt_file}"), sep="\t", index=False, header=False)
+            self.logger.info(f"{self.dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}")
 
             destination_img_dir = os.path.join(out_dir, img_dir)
             current_img_dir = os.path.join(data_dir, "img")

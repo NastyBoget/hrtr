@@ -2,6 +2,7 @@ class ModelOptions:
     
     def __init__(self,
                  saved_model: str = None,
+                 preprocessing: bool = False,
                  transformation: str = "TPS",
                  feature_extraction: str = "ResNet",
                  sequence_modeling: str = "BiLSTM",
@@ -16,6 +17,7 @@ class ModelOptions:
                  num_fiducial: int = 20,
                  output_channel: int = 512,
                  hidden_size: int = 256):
+        self.preprocessing = preprocessing
         self.transformation = transformation
         self.feature_extraction = feature_extraction
         self.sequence_modeling = sequence_modeling

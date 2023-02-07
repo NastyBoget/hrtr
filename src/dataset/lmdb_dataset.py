@@ -17,6 +17,7 @@ class LmdbDataset(Dataset):
     def __init__(self, root: str, opt: Any, logger: logging.Logger) -> None:
         self.root = root
         self.opt = opt
+        self.augmentation = hasattr(self.opt, "augmentation") and self.opt.augmentation
         self.logger = logger
         self.env = lmdb.open(root, max_readers=32, readonly=True, lock=False, readahead=False, meminit=False)
         if not self.env:
@@ -72,9 +73,10 @@ class LmdbDataset(Dataset):
             if not self.opt.sensitive:
                 label = label.lower()
 
-            if hasattr(self.opt, "augmentation") and self.opt.augmentation:
+            if self.augmentation:
                 img = augment(img)
-            if hasattr(self.opt, "preprocessing") and self.opt.preprocessing:
+
+            if self.opt.preprocessing:
                 img = preprocess(img)
 
             out_of_char = f'[^{self.opt.character}]'

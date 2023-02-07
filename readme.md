@@ -6,6 +6,9 @@
 |:--------------------------------------------------------------------------------------------------------------|:----------------------------------------------|
 | [Cyrillic Handwriting Dataset](https://www.kaggle.com/datasets/constantinwerner/cyrillic-handwriting-dataset) | train=72286, test=1544                        |
 | [HKR](https://github.com/abdoelsayed2016/HKR_Dataset)                                                         | train=45470, val=9359, test1=5057, test2=5057 |
+| HKR (reality)                                                                                                 | train=45559, val=9375, test1=4966, test2=5043 |
+
+HKR: val 9133 words in train, 242 words not in train
 
 ## Metrics
 

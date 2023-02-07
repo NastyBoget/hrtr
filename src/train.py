@@ -46,8 +46,11 @@ def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset
 
     train_dataset = BatchBalancedDataset(opt, logger)
     align_collate_valid = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
-    val_dataset = hierarchical_dataset(root=opt.valid_data, opt=opt, logger=logger)
+    augmentation = opt.augmentation
+    opt.augmentation = False
+    val_dataset = hierarchical_dataset(root=opt.valid_data, select_data=opt.select_data, opt=opt, logger=logger)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=int(opt.workers), collate_fn=align_collate_valid, pin_memory=True)  # noqa
+    opt.augmentation = augmentation
     return train_dataset, val_loader
 
 
@@ -170,7 +173,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
             train_loss = loss_averager.val()
             logger.info(f'[{iteration + 1}/{opt.num_iter}] Train loss: {train_loss:0.5f}, valid loss: {valid_loss:0.5f}, elapsed time: {elapsed_time:0.5f}')
             loss_averager.reset()
-            logger.info(f'{"Current accuracy":17s}: {current_accuracy:0.3f}, {"current CER":17s}: {current_cer:0.2f}')
+            logger.info(f'{"Current accuracy":17s}: {current_accuracy:0.3f}, {"current CER":17s}: {current_cer:0.2f}, {"current WER":17s}: {current_wer:0.2f}')
             best_accuracy = current_accuracy if current_accuracy > best_accuracy else best_accuracy
             # keep best cer model (on valid dataset)
             if current_cer < best_cer:
@@ -191,8 +194,8 @@ def train(opt: Any, logger: logging.Logger) -> None:
             if (iteration + 1) % iter_per_epoch == 0 or iteration == 0:
                 logger.info(f"Iter: [{iteration + 1}/{opt.num_iter}]. Epoch: [{epoch}/{n_epochs}]. Training loss: {train_loss}.")
                 if valid_loss < best_loss:
-                    best_loss = valid_loss
                     logger.info(f"Validation loss decreased ({best_loss:0.5f} -> {valid_loss:0.5f}), saving model...")
+                    best_loss = valid_loss
                     torch.save(model.state_dict(), os.path.join(opt.out_dir, f'best_loss.pth'))
                     loss_increase_num = 0
                 else:
@@ -238,7 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('--write_errors', action='store_true', help='Write model\'s errors to the log file')
 
     # Data processing
-    parser.add_argument('--select_data', type=str, help='Select training data from datasets separated by - e.g. hkr-synthetic', required=True)
+    parser.add_argument('--select_data', type=str, help='Training data selection from datasets separated by - e.g. hkr-synthetic', required=True)
     parser.add_argument('--batch_ratio', type=str, help='Assign ratio for each selected data in the batch e.g. 0.5-0.5', required=True)
     parser.add_argument('--total_data_usage_ratio', type=str, default='1.0', help='Total data usage ratio, this ratio is multiplied to total number of data.')
     parser.add_argument('--batch_max_length', type=int, default=40, help='Maximum label length')
