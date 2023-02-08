@@ -223,6 +223,7 @@ if __name__ == '__main__':
     parser.add_argument('--out_dir', help='Where to store models', required=True)
     parser.add_argument('--train_data', type=str, help='Path to training dataset', required=True)
     parser.add_argument('--valid_data', type=str, help='Path to validation dataset', required=True)
+    parser.add_argument('--fonts_dir', type=str, help='Directory with fonts to generate images', default='fonts')
     parser.add_argument('--lang', type=str, help='Language of the loaded model', default='en')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--workers', type=int, help='Number of data loading workers', default=0)
@@ -241,7 +242,9 @@ if __name__ == '__main__':
     parser.add_argument('--write_errors', action='store_true', help='Write model\'s errors to the log file')
 
     # Data processing
-    parser.add_argument('--select_data', type=str, help='Training data selection from datasets separated by - e.g. hkr-synthetic', required=True)
+    parser.add_argument('--select_data', type=str, help='Training data selection from datasets separated by -'
+                                                        ' e.g. hkr-synthetic, use "generate" for text generation', required=True)
+    parser.add_argument('--generate_num', type=int, help='The number of words to generate for each epoch', default=30000)
     parser.add_argument('--batch_ratio', type=str, help='Assign ratio for each selected data in the batch e.g. 0.5-0.5', required=True)
     parser.add_argument('--total_data_usage_ratio', type=str, default='1.0', help='Total data usage ratio, this ratio is multiplied to total number of data.')
     parser.add_argument('--batch_max_length', type=int, default=40, help='Maximum label length')

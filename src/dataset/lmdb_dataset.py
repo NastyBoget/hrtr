@@ -8,7 +8,7 @@ import six
 from PIL import Image
 from torch.utils.data import Dataset
 
-from src.dataset.augmentation.augmentation import augment
+from dataset.augmentation.image_augmentation import augment
 from src.dataset.preprocessing.preprocessing import preprocess
 
 

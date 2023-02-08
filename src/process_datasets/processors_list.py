@@ -9,8 +9,8 @@ from process_datasets.synthetic_processor import SyntheticDatasetProcessor
 
 def get_processors_list(logger: logging.Logger) -> List[AbstractDatasetProcessor]:
     processors = [
-        SyntheticDatasetProcessor(logger=logger),
         CyrillicDatasetProcessor(logger=logger),
-        HKRDatasetProcessor(logger=logger)
+        HKRDatasetProcessor(logger=logger),
+        SyntheticDatasetProcessor(logger=logger)
     ]
     return processors

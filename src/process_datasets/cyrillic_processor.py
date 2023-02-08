@@ -15,11 +15,11 @@ class CyrillicDatasetProcessor(AbstractDatasetProcessor):
     """Process cyrillic dataset https://www.kaggle.com/datasets/constantinwerner/cyrillic-handwriting-dataset """
 
     __dataset_name = "cyrillic"
-    __charset = ' !"%(),-./0123456789:;?[]abgnpvx«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё'
+    __charset = ' !"%\'()+,-./0123456789:;=?R[]bcehioprstuxy«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё№'
 
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
-        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/F6QwV1CY5ExbbbH/download"
+        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/qruHwU5iSOMUrw0/download"
         self.logger = logger
 
     @property

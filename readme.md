@@ -41,34 +41,70 @@ HKR: val 9133 words in train, 242 words not in train
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |  31.21   |   39.68   |   89.62   |  64.8   |
-|   CER    |  22.17   |   39.32   |   2.92    |  20.9   |
-|   WER    |  68.05   |   65.79   |   7.37    |  36.3   |
+| Accuracy |          |   38.70   |   87.19   |  63.13  |
+|   CER    |          |   40.63   |   3.45    |  21.89  |
+|   WER    |          |   68.59   |   8.92    |  38.52  |
 
 
-### With synthetic № 1
+### With synthetic
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |  33.16   |   45.12   |   79.31   |  62.3   |
-|   CER    |  19.36   |   18.92   |   4.13    |  11.4   |
-|   WER    |  64.95   |   53.04   |   14.02   |  33.3   |
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |
 
 
 $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 ## Results with preprocessing without augmentation
 
-TODO
+### Without synthetic
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |   38.02   |   86.30   |  62.34  |
+|   CER    |          |   40.06   |   3.62    |  21.69  |
+|   WER    |          |   69.45   |   9.58    |  39.28  |
+
+### With synthetic
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |
 
 ## Results with preprocessing and image augmentation
 
-TODO
+### Without synthetic
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |   39.10   |   87.29   |  63.38  |
+|   CER    |          |   38.63   |   3.22    |  20.78  |
+|   WER    |          |   67.29   |   8.68    |  37.75  |
+
+### With synthetic
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |
 
 ## Results with preprocessing and text augmentation
 
-TODO
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |
 
 ## Results with preprocessing and both text, image augmentation
 
-TODO
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |

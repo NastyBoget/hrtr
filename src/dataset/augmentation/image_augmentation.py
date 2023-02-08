@@ -3,10 +3,48 @@ import random
 import cv2
 import numpy as np
 import skimage.exposure
+from PIL import Image
 from augmixations import HandWrittenBlot
 from numpy.random import default_rng
 
-from src.dataset.preprocessing.slope_correction import detect_baseline
+from dataset.preprocessing.binarization import Binarizer
+
+
+binarizer = Binarizer()
+
+
+def augment(img: Image.Image) -> Image.Image:
+    """
+    :param img: pil image with white background
+    :return: augmented image
+    """
+    img = np.array(img)
+    if len(img.shape) < 3:
+        rgb = False
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_GRAY2BGR)
+    else:
+        rgb = True
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+    img = binarizer.binarize(img)
+    augment_probability = 0.3
+
+    # Text augmentation
+    img = change_width(img, proportion=random.uniform(0.5, 2.))
+    img = blur(img, max_blur=random.randint(1, 7)) if random.random() < augment_probability else img
+    img = resize_down(img) if random.random() < augment_probability else img
+    img = resize_up(img) if random.random() < augment_probability else img
+    img = erode(img) if random.random() < augment_probability else img
+    img = dilate(img) if random.random() < augment_probability else img
+
+    # Background augmentation
+    img = add_blot(img, blots_num=random.randint(0, 3))
+    img = add_blurred_stains(img, max_color=random.randint(100, 150), light=bool(random.randint(0, 1))) \
+        if random.random() < augment_probability else img
+    img = add_cut_characters(img, under=bool(random.randint(0, 1))) if random.random() < augment_probability else img
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if not rgb else cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(img)
 
 
 def change_width(img: np.ndarray, proportion: float) -> np.ndarray:
@@ -89,75 +127,6 @@ def fill_gradient(img: np.ndarray, color: int, rotate: int = 0, light: bool = Fa
     else:
         img = cv2.add(255 - img, background_img)
         return 255 - img
-
-
-def draw_lines(img: np.ndarray, color: int, thickness: int, lines_type: int = 0, line_width: int = 3) -> np.ndarray:
-    """
-    :param img: image where background is 255 and text is black 0
-    :param color: color of the lines to draw
-    :param thickness: thickness of the lines
-    :param lines_type: 0 if lines and non-zero if checkered
-    :param line_width: distance between neighbor lines in comparison with the text height
-    :return: image with lines
-    """
-    try:
-        inverse_img = 255 - img
-        color = (255 - color, 255 - color, 255 - color)
-        y1, _ = detect_baseline(inverse_img)
-        y2, _ = detect_baseline(np.rot90(inverse_img, 2))
-        y2 = inverse_img.shape[0] - y2
-        delta = (y1 - y2) * line_width
-
-        background_img = np.zeros_like(inverse_img)
-        y = y1
-        while y > 0:
-            y -= delta
-        while y < background_img.shape[0]:
-            background_img = cv2.line(background_img, (0, y), (background_img.shape[1], y), color=color, thickness=thickness)
-            y += delta
-
-        if lines_type == 0:
-            inverse_img = cv2.add(inverse_img, background_img)
-            return 255 - inverse_img
-
-        x = random.randint(0, delta)
-        while x < background_img.shape[1]:
-            background_img = cv2.line(background_img, (x, 0), (x, background_img.shape[0]), color=color, thickness=thickness)
-            x += delta
-
-        inverse_img = cv2.add(inverse_img, background_img)
-        return 255 - inverse_img
-    except ValueError:
-        return img
-
-
-def add_noise(img: np.ndarray, max_dots: int, min_color: int, max_color: int) -> np.ndarray:
-    """
-    Add random dots to the picture
-    :param img: image to change
-    :param max_dots: maximum number of dots
-    :param min_color: minimum value of the dots' color
-    :param max_color: maximum value of the dots' color
-    :return: image with dots
-    """
-    number_of_pixels = random.randint(0, max_dots)
-
-    for i in range(number_of_pixels):
-        y_coord = random.randint(0, img.shape[0] - 1)
-        x_coord = random.randint(0, img.shape[1] - 1)
-        color = random.randint(min_color, max_color)
-        img[y_coord][x_coord] = (color, color, color)
-
-        if random.random() < 0.5 and y_coord - 1 > 0:
-            img[y_coord - 1][x_coord] = (color, color, color)
-        if random.random() < 0.5 and x_coord - 1 > 0:
-            img[y_coord][x_coord - 1] = (color, color, color)
-        if random.random() < 0.5 and y_coord + 1 < img.shape[0]:
-            img[y_coord + 1][x_coord] = (color, color, color)
-        if random.random() < 0.5 and x_coord + 1 < img.shape[1]:
-            img[y_coord][x_coord + 1] = (color, color, color)
-
-    return img
 
 
 def add_stains(img: np.ndarray, color: int, light: bool = False) -> np.ndarray:
