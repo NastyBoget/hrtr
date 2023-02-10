@@ -31,7 +31,7 @@ class BatchBalancedDataset(object):
         for selected_d, batch_ratio_d in zip(opt.select_data, opt.batch_ratio):
             batch_size = max(round(opt.batch_size * float(batch_ratio_d)), 1)
             if selected_d == "generate":
-                dataset = TextGenerationDataset(opt)
+                dataset = TextGenerationDataset(opt, logger=logger)
             else:
                 dataset = hierarchical_dataset(root=opt.train_data, opt=opt, select_data=[selected_d], logger=logger)
             total_number_dataset = len(dataset)

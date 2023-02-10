@@ -22,16 +22,23 @@ class TextGenerator:
         if len(self.texts) > 0:
             return self.texts.pop()
 
+        while len(self.texts) == 0:
+            self.__fill_texts()
+
+        return self.texts.pop()
+
+    def __fill_texts(self) -> None:
         words = []
         while len(words) == 0:
-            words = self.__get_words()
+            try:
+                words = self.__get_words()
+            except Exception:
+                words = []
 
         while len(words) > self.max_words_number:
             sentence_len = random.randint(1, self.max_words_number)
             self.texts.append(" ".join(words[:sentence_len]))
             words = words[sentence_len:]
-
-        return self.texts.pop()
 
     def __get_words(self) -> List[str]:
         # 1 - Get random title of the article in Wikipedia

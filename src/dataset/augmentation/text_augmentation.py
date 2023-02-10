@@ -1,6 +1,6 @@
 import os
 import random
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
@@ -27,15 +27,25 @@ font2not_allowed_symbols = {
 
 class ImageGenerator:
 
-    def __init__(self, fonts_dir: str, background_color: tuple = (255, 255, 255), text_color: tuple = (0, 0, 0)) -> None:
+    def __init__(self,
+                 fonts_dir: str,
+                 rgb: bool,
+                 background_color: Union[tuple, int] = (255, 255, 255),
+                 text_color: Union[tuple, int] = (0, 0, 0)) -> None:
+        self.rgb = rgb
+        if rgb and isinstance(background_color, int):
+            self.background_color = (background_color, background_color, background_color)
+        elif not rgb and isinstance(background_color, tuple):
+            self.background_color = background_color[0]
+        else:
+            self.background_color = background_color
+        self.text_color = text_color[0] if not rgb and isinstance(text_color, tuple) else text_color
+
         self.fonts_dir = fonts_dir
         self.font_names = sorted([font_name for font_name in os.listdir(fonts_dir) if font_name.lower().endswith((".ttf", ".otf"))])
-        self.background_color = background_color
-        self.text_color = text_color
         self.text_generator = TextGenerator()
 
-    def get_image(self, rgb: bool) -> Tuple[Image.Image, str]:
-        channel_number = 3 if rgb else 1
+    def get_image(self) -> Tuple[Image.Image, str]:
         font_size = random.randint(30, 100)
         x_margin, y_margin = random.randint(0, 10), random.randint(0, 10)
         font_name = self.font_names[random.randint(0, len(self.font_names) - 1)]
@@ -48,10 +58,10 @@ class ImageGenerator:
                 for sym in font2not_allowed_symbols[font_name]:
                     text = text.replace(sym, "")
 
-        img_size = (font_size * 10, font_size * len(text) * 10, channel_number)
+        img_size = (font_size * 10, font_size * len(text) * 10, 3) if self.rgb else (font_size * 10, font_size * len(text) * 10)
         img = np.zeros(img_size, dtype=np.uint8)
         img[:, :] = self.background_color
-        img = Image.fromarray(img)
+        img = Image.fromarray(img) if self.rgb else Image.fromarray(img, 'L')
         draw = ImageDraw.Draw(img)
 
         x, y = font_size, font_size
