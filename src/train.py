@@ -254,6 +254,7 @@ if __name__ == '__main__':
     parser.add_argument('--sensitive', action='store_true', help='For sensitive character mode')
     parser.add_argument('--pad', action='store_true', help='Whether to keep ratio then pad for image resize')
     parser.add_argument('--data_filtering_off', action='store_true', help='For data_filtering_off mode')
+    parser.add_argument('--add_generate_to_val', action='store_true', help='Add generated data to val dataset if text augmentation is used')
     parser.add_argument('--augmentation', action='store_true', help='Use augmentation during training')
     parser.add_argument('--preprocessing', action='store_true', help='Preprocess training data')
 

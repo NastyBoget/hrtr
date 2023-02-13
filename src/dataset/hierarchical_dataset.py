@@ -5,6 +5,7 @@ from typing import Any, List, Optional
 from torch.utils.data import ConcatDataset
 
 from dataset.lmdb_dataset import LmdbDataset
+from dataset.text_generation_dataset import TextGenerationDataset
 
 
 def hierarchical_dataset(root: str, opt: Any, logger: logging.Logger, select_data: Optional[List[str]] = None) -> ConcatDataset:
@@ -31,6 +32,11 @@ def hierarchical_dataset(root: str, opt: Any, logger: logging.Logger, select_dat
             dataset = LmdbDataset(dirpath, opt, logger)
             logger.info(f'Subdirectory: {os.path.relpath(dirpath, root)}; num samples: {len(dataset)}')
             dataset_list.append(dataset)
+
+    if 'generate' in select_data and hasattr(opt, "add_generate_to_val") and opt.add_generate_to_val:
+        dataset = TextGenerationDataset(opt, logger)
+        logger.info('Generate data will be added to validation dataset')
+        dataset_list.append(dataset)
 
     concatenated_dataset = ConcatDataset(dataset_list)
     return concatenated_dataset

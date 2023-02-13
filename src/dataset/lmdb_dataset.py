@@ -74,7 +74,7 @@ class LmdbDataset(Dataset):
                 label = label.lower()
 
             if self.augmentation:
-                img = augment(img)
+                img = augment(img, self.opt)
 
             if self.opt.preprocessing:
                 img = preprocess(img)

@@ -13,7 +13,7 @@ from dataset.preprocessing.binarization import Binarizer
 binarizer = Binarizer()
 
 
-def augment(img: Image.Image) -> Image.Image:
+def augment(img: Image.Image, opt: any) -> Image.Image:
     """
     :param img: pil image with white background
     :return: augmented image
@@ -26,7 +26,8 @@ def augment(img: Image.Image) -> Image.Image:
         rgb = True
         img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
-    img = binarizer.binarize(img)
+    if opt.preprocessing:
+        img = binarizer.binarize(img)
     augment_probability = 0.3
 
     # Text augmentation
