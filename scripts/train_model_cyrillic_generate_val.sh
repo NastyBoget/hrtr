@@ -11,4 +11,4 @@ LOGS_DIR='logs'
 CUDA_VISIBLE_DEVICES=3 python3 src/train.py --train_data $DATA_DIR/train --valid_data $DATA_DIR/val/$DATASET \
   --select_data $DATASET-generate --log_dir $LOGS_DIR --log_name train\_$DATASET\_generate\_val.txt --out_dir $OUT_DIR/$DATASET\_generate\_val \
   --batch_ratio 0.5-0.5 --manual_seed 1 --transformation TPS --feature_extraction ResNet --sequence_modeling BiLSTM \
-  --prediction Attn --sensitive --lang rus --add_generate_to_val
+  --prediction Attn --sensitive --add_generate_to_val

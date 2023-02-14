@@ -68,6 +68,16 @@ HKR: val 9133 words in train, 242 words not in train
 |   WER    |  58.46   |   52.50   |   11.09   |  31.63  |
 </details>
 
+
+<details><summary>With runtime generated data during training and validation</summary>
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |  38.14   |   45.47   |   84.55   |  65.16  |
+|   CER    |  16.35   |   18.20   |   3.22    |  10.65  |
+|   WER    |  58.97   |   50.42   |   10.39   |  30.25  |
+</details>
+
 $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 
@@ -100,6 +110,16 @@ $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 | Accuracy |  33.03   |   42.81   |   74.50   |  58.77  |
 |   CER    |  20.66   |   17.39   |   5.47    |  11.38  |
 |   WER    |  63.14   |   51.00   |   18.08   |  34.41  |
+</details>
+
+
+<details><summary>With pretrained model</summary>
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |          |           |           |         |
+|   CER    |          |           |           |         |
+|   WER    |          |           |           |         |
 </details>
 
 

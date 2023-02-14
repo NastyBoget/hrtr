@@ -3,7 +3,7 @@
 ROOT=$(readlink -f .)
 export PYTHONPATH=$PYTHONPATH:$ROOT:$ROOT/src
 
-DATASET='cyrillic'
+DATASET='imgur5k'
 DATA_DIR='datasets'
 OUT_DIR='saved_models'
 LOGS_DIR='logs'

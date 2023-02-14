@@ -3,7 +3,6 @@ import argparse
 import logging
 import os
 import random
-import string
 import sys
 import time
 from typing import Any, Tuple
@@ -29,7 +28,6 @@ from src.test import validation
 from src.utils.logger import get_logger
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# Saved models for English https://drive.google.com/drive/folders/1h6edewgRUTJPzI81Mn0eSsqItnk9RMeO
 
 
 def get_charset(opt: Any, logger: logging.Logger) -> str:
@@ -40,7 +38,7 @@ def get_charset(opt: Any, logger: logging.Logger) -> str:
 def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset, torch.utils.data.DataLoader]:
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
-    if opt.lang != "en":
+    if len(opt.initial_data) == 0:
         opt.character = get_charset(opt, logger)
     opt.character = opt.character if opt.sensitive else "".join(list(set(opt.character.lower())))
 
@@ -83,9 +81,9 @@ def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
         else:
             model.load_state_dict(torch.load(opt.saved_model))
 
-    if opt.lang == "en":
+    if len(opt.initial_data) > 0:
         char_set = get_charset(opt, logger)
-        model.module.reset_output(charset=char_set)  # replace last layer to fine-tune english model for russian
+        model.module.reset_output(charset=char_set)  # replace last layer to fine-tune model with another charset
 
     model.train()
     model = model.to(device)
@@ -115,8 +113,8 @@ def get_training_utils(logger: logging.Logger, model: torch.nn.DataParallel, opt
 
 
 def train(opt: Any, logger: logging.Logger) -> None:
-    train_dataset, val_loader = prepare_data(opt, logger)
     model = load_model(opt, logger)
+    train_dataset, val_loader = prepare_data(opt, logger)
     converter, criterion, loss_averager, optimizer = get_training_utils(logger, model, opt)
 
     start_iter = 0
@@ -224,7 +222,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_data', type=str, help='Path to training dataset', required=True)
     parser.add_argument('--valid_data', type=str, help='Path to validation dataset', required=True)
     parser.add_argument('--fonts_dir', type=str, help='Directory with fonts to generate images', default='fonts')
-    parser.add_argument('--lang', type=str, help='Language of the loaded model', default='en')
+    parser.add_argument('--initial_data', type=str, help='Datasets of the pretrained model if we need to reset its output, separated by -', default='')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--workers', type=int, help='Number of data loading workers', default=0)
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
@@ -274,8 +272,10 @@ if __name__ == '__main__':
     logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
     os.makedirs(opt.out_dir, exist_ok=True)
 
-    if opt.lang == "en":
-        opt.character = string.printable[:-6]
+    if len(opt.initial_data) > 0:
+        opt.initial_data = opt.initial_data.split('-')
+        processors = get_processors_list(logger)
+        opt.character = "".join(sorted(list(set("".join(p.charset for p in processors if p.dataset_name in opt.initial_data)))))
 
     # Seed and GPU setting
     random.seed(opt.manual_seed)
