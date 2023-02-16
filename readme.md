@@ -78,6 +78,17 @@ HKR: val 9133 words in train, 242 words not in train
 |   WER    |  58.97   |   50.42   |   10.39   |  30.25  |
 </details>
 
+
+<details><summary>With pretrained model</summary>
+
+|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
+|:--------:|:--------:|:---------:|:---------:|:-------:|
+| Accuracy |  32.18   |   43.36   |   76.61   |  60.11  |
+|   CER    |  22.04   |   17.12   |   4.55    |  10.78  |
+|   WER    |  67.40   |   51.23   |   16.18   |  33.57  |
+</details>
+
+
 $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 
@@ -113,25 +124,15 @@ $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 </details>
 
 
-<details><summary>With pretrained model</summary>
-
-|  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
-|:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |          |           |           |         |
-|   CER    |          |           |           |         |
-|   WER    |          |           |           |         |
-</details>
-
-
 ### Results with augmentation without preprocessing
 
 <details><summary>Without synthetic</summary>
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |          |           |           |         |
-|   CER    |          |           |           |         |
-|   WER    |          |           |           |         |
+| Accuracy |  47.53   |   40.43   |   90.94   |  65.87  |
+|   CER    |  14.87   |   42.67   |   2.32    |  22.33  |
+|   WER    |  51.36   |   68.58   |   5.90    |  36.99  |
 </details>
 
 
@@ -139,9 +140,9 @@ $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |          |           |           |         |
-|   CER    |          |           |           |         |
-|   WER    |          |           |           |         |
+| Accuracy |  44.10   |   43.88   |   89.00   |  66.61  |
+|   CER    |  14.28   |   25.44   |   2.46    |  13.86  |
+|   WER    |  52.71   |   55.94   |   7.18    |  31.37  |
 </details>
 
 
@@ -149,9 +150,9 @@ $$ HKR~all = \frac{test1 \cdot 4966 + test2 \cdot 5043}{10009} $$
 
 |  Metric  | Cyrillic | HKR test1 | HKR test2 | HKR all |
 |:--------:|:--------:|:---------:|:---------:|:-------:|
-| Accuracy |          |           |           |         |
-|   CER    |          |           |           |         |
-|   WER    |          |           |           |         |
+| Accuracy |  43.84   |   44.61   |   89.04   |  66.99  |
+|   CER    |  14.45   |   23.67   |   2.49    |  12.99  |
+|   WER    |  51.92   |   53.29   |   7.27    |  30.10  |
 </details>
 
 

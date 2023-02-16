@@ -2,6 +2,8 @@
 A modified version of AttentionHTR repository https://github.com/dmitrijsk/AttentionHTR
 License: https://github.com/dmitrijsk/AttentionHTR/blob/main/model/LICENSE.md
 """
+import logging
+
 import torch.nn as nn
 
 from src.model.feature_extraction.rcnn import RCNNFeatureExtractor
@@ -9,14 +11,16 @@ from src.model.feature_extraction.resnet import ResNetFeatureExtractor
 from src.model.feature_extraction.vgg import VGGFeatureExtractor
 from src.model.prediction.attention import Attention
 from src.model.preprocessing.transformation import TPSSpatialTransformerNetwork
+from src.model.sequence_modeling.bigru import BidirectionalGRU
 from src.model.sequence_modeling.bilstm import BidirectionalLSTM
 
 
 class Model(nn.Module):
 
-    def __init__(self, opt):
+    def __init__(self, opt, logger: logging.Logger):
         super(Model, self).__init__()
         self.opt = opt
+        self.logger = logger
         self.stages = {'Trans': opt.transformation, 'Feat': opt.feature_extraction, 'Seq': opt.sequence_modeling, 'Pred': opt.prediction}
 
         if opt.transformation == 'TPS':
@@ -24,7 +28,8 @@ class Model(nn.Module):
                 f=opt.num_fiducial, i_size=(opt.img_h, opt.img_w), i_r_size=(opt.img_h, opt.img_w), i_channel_num=opt.input_channel
             )
         else:
-            print('No Transformation module specified')
+            self.logger.info('No Transformation module specified')
+            self.stages['Trans'] = "None"
 
         if opt.feature_extraction == 'VGG':
             self.feature_extraction = VGGFeatureExtractor(opt.input_channel, opt.output_channel)
@@ -43,8 +48,15 @@ class Model(nn.Module):
                 BidirectionalLSTM(opt.hidden_size, opt.hidden_size, opt.hidden_size)
             )
             self.sequence_modeling_output = opt.hidden_size
+        elif opt.sequence_modeling == 'BiGRU':
+            self.sequence_modeling = nn.Sequential(
+                BidirectionalGRU(self.feature_extraction_output, opt.hidden_size, opt.hidden_size),
+                BidirectionalGRU(opt.hidden_size, opt.hidden_size, opt.hidden_size)
+            )
+            self.sequence_modeling_output = opt.hidden_size
         else:
-            print('No SequenceModeling module specified')
+            self.logger.info('No SequenceModeling module specified')
+            self.stages['Seq'] = "None"
             self.sequence_modeling_output = self.feature_extraction_output
 
         if opt.prediction == 'CTC':
@@ -62,7 +74,7 @@ class Model(nn.Module):
         visual_feature = self.adaptive_avg_pool(visual_feature.permute(0, 3, 1, 2))  # [b, c, h, w] -> [b, w, c, h]
         visual_feature = visual_feature.squeeze(3)
 
-        if self.stages['Seq'] == 'BiLSTM':
+        if not self.stages['Seq'] == 'None':
             contextual_feature = self.sequence_modeling(visual_feature)
         else:
             contextual_feature = visual_feature  # for convenience. this is NOT contextually modeled by BiLSTM

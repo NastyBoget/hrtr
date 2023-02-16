@@ -38,8 +38,6 @@ def get_charset(opt: Any, logger: logging.Logger) -> str:
 def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset, torch.utils.data.DataLoader]:
     opt.select_data = opt.select_data.split('-')
     opt.batch_ratio = opt.batch_ratio.split('-')
-    if len(opt.initial_data) == 0:
-        opt.character = get_charset(opt, logger)
     opt.character = opt.character if opt.sensitive else "".join(list(set(opt.character.lower())))
 
     train_dataset = BatchBalancedDataset(opt, logger)
@@ -55,7 +53,7 @@ def prepare_data(opt: Any, logger: logging.Logger) -> Tuple[BatchBalancedDataset
 def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
     opt.num_class = len(opt.character) + 1 if 'CTC' in opt.prediction else len(opt.character) + 2
     opt.input_channel = 3 if opt.rgb else 1
-    model = Model(opt)
+    model = Model(opt, logger)
     logger.info(f'Model input parameters: {opt.img_h}, {opt.img_w}, {opt.num_fiducial}, {opt.input_channel}, {opt.output_channel}, {opt.hidden_size},'
                 f' {opt.num_class}, {opt.batch_max_length}, {opt.transformation}, {opt.feature_extraction}, {opt.sequence_modeling}, {opt.prediction}')
 
@@ -259,7 +257,7 @@ if __name__ == '__main__':
     # Model Architecture
     parser.add_argument('--transformation', type=str, required=True, help='Transformation stage. None|TPS')
     parser.add_argument('--feature_extraction', type=str, required=True, help='Feature extraction stage. VGG|RCNN|ResNet')
-    parser.add_argument('--sequence_modeling', type=str, required=True, help='Sequence modeling stage. None|BiLSTM')
+    parser.add_argument('--sequence_modeling', type=str, required=True, help='Sequence modeling stage. None|BiLSTM|BiGRU')
     parser.add_argument('--prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
     parser.add_argument('--num_fiducial', type=int, default=20, help='Number of fiducial points of TPS-STN')
     parser.add_argument('--input_channel', type=int, default=1, help='The number of input channel of Feature extractor')
@@ -276,6 +274,8 @@ if __name__ == '__main__':
         opt.initial_data = opt.initial_data.split('-')
         processors = get_processors_list(logger)
         opt.character = "".join(sorted(list(set("".join(p.charset for p in processors if p.dataset_name in opt.initial_data)))))
+    else:
+        opt.character = get_charset(opt, logger)
 
     # Seed and GPU setting
     random.seed(opt.manual_seed)

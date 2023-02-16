@@ -91,7 +91,7 @@ def test(opt: Any, logger: logging.Logger) -> None:
     opt.num_class = len(converter.character)
     opt.input_channel = 3 if opt.rgb else 1
 
-    model = Model(opt)
+    model = Model(opt, logger)
     logger.info(f'Model input parameters: {opt.img_h}, {opt.img_w}, {opt.num_fiducial}, {opt.input_channel}, {opt.output_channel}, {opt.hidden_size},'
                 f' {opt.num_class}, {opt.batch_max_length}, {opt.transformation}, {opt.feature_extraction}, {opt.sequence_modeling}, {opt.prediction}')
     model = torch.nn.DataParallel(model).to(device)
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     # Model Architecture
     parser.add_argument('--transformation', type=str, required=True, help='Transformation stage. None|TPS')
     parser.add_argument('--feature_extraction', type=str, required=True, help='Feature extraction stage. VGG|RCNN|ResNet')
-    parser.add_argument('--sequence_modeling', type=str, required=True, help='Sequence modeling stage. None|BiLSTM')
+    parser.add_argument('--sequence_modeling', type=str, required=True, help='Sequence modeling stage. None|BiLSTM|BiGRU')
     parser.add_argument('--prediction', type=str, required=True, help='Prediction stage. CTC|Attn')
     parser.add_argument('--num_fiducial', type=int, default=20, help='Number of fiducial points of TPS-STN')
     parser.add_argument('--input_channel', type=int, default=1, help='The number of input channel of Feature extractor')
