@@ -227,6 +227,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_iter', type=int, default=300000, help='Number of iterations to train for')
     parser.add_argument('--val_interval', type=int, default=2000, help='Interval between each validation')
     parser.add_argument('--saved_model', type=str, default='', help="Path to model to continue training")
+    parser.add_argument('--transformation_path', type=str, default='', help="Path to model to load weights for Transformation stage")
     parser.add_argument('--ft', action='store_true', help='Whether to do fine-tuning')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is Adadelta)')
     parser.add_argument('--lr', type=float, default=1, help='Learning rate, default=1.0 for Adadelta')

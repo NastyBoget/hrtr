@@ -4,6 +4,9 @@ License: https://github.com/dmitrijsk/AttentionHTR/blob/main/model/LICENSE.md
 """
 import logging
 
+import cv2
+import numpy as np
+import torch
 import torch.nn as nn
 
 from src.model.feature_extraction.rcnn import RCNNFeatureExtractor
@@ -13,6 +16,8 @@ from src.model.prediction.attention import Attention
 from src.model.preprocessing.transformation import TPSSpatialTransformerNetwork
 from src.model.sequence_modeling.bigru import BidirectionalGRU
 from src.model.sequence_modeling.bilstm import BidirectionalLSTM
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 class Model(nn.Module):
@@ -27,6 +32,8 @@ class Model(nn.Module):
             self.transformation = TPSSpatialTransformerNetwork(
                 f=opt.num_fiducial, i_size=(opt.img_h, opt.img_w), i_r_size=(opt.img_h, opt.img_w), i_channel_num=opt.input_channel
             )
+            if hasattr(opt, "transformation_path") and opt.transformation_path:
+                self.load_transformation_weights(path=opt.transformation_path)
         else:
             self.logger.info('No Transformation module specified')
             self.stages['Trans'] = "None"
@@ -65,6 +72,22 @@ class Model(nn.Module):
             self.prediction = Attention(self.sequence_modeling_output, opt.hidden_size, opt.num_class)
         else:
             raise Exception('Prediction is neither CTC or Attn')
+
+    def load_transformation_weights(self, path: str) -> None:
+        state_dict = torch.load(path, map_location=device)
+        filtered_dict = {key.replace("module.Transformation.LocalizationNetwork", "localization_network"): value for key, value in state_dict.items()
+                         if key.startswith("module.Transformation.LocalizationNetwork")}
+        filtered_dict_grid = {key.replace("module.Transformation.GridGenerator", "grid_generator").lower(): value for key, value in state_dict.items()
+                              if key.startswith("module.Transformation.GridGenerator")}
+        new_dict = {**filtered_dict, **filtered_dict_grid}
+        self.transformation.load_state_dict(new_dict)
+
+    def save_tensor(self, inp, name: str, count: int = 10):
+        for i in range(count):
+            img = inp[i].permute(1, 2, 0)
+            img = (img - img.min()) / (img.max() - img.min()) * 255
+            img = img.detach().numpy().astype(np.uint8)
+            cv2.imwrite(f"{i + 1}_{name}.png", img)
 
     def forward(self, inp, text, is_train=True):
         if not self.stages['Trans'] == "None":

@@ -18,7 +18,9 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
 
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
-        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download"
+        # small (60K) https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
+        # large (4M) https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download
+        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download"
         self.logger = logger
 
     @property
@@ -46,7 +48,7 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
             self.logger.info(f"{self.dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
-            train_df, val_df = train_test_split(df, test_size=0.2, random_state=42, shuffle=True)
+            train_df, val_df = train_test_split(df, test_size=0.05, random_state=42, shuffle=True)
             train_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
             val_df.to_csv(os.path.join(out_dir, f"val_{gt_file}"), sep="\t", index=False, header=False)
             self.logger.info(f"{self.dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}")
