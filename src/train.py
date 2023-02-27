@@ -1,5 +1,6 @@
 """ modified version of deep-text-recognition-benchmark repository https://github.com/clovaai/deep-text-recognition-benchmark/blob/master/train.py """
 import argparse
+import json
 import logging
 import os
 import random
@@ -74,10 +75,18 @@ def load_model(opt: Any, logger: logging.Logger) -> torch.nn.DataParallel:
     model = torch.nn.DataParallel(model)
     if opt.saved_model != '':
         logger.info(f'Loading pretrained model from {opt.saved_model}')
-        if opt.ft:
-            model.load_state_dict(torch.load(opt.saved_model, map_location=device), strict=False)
+        state_dict = torch.load(opt.saved_model, map_location=device)
+
+        if opt.weights_mapping:
+            with open(opt.weights_mapping, "r") as f:
+                weights_mapping = json.load(f)
+            state_dict_renamed = {weights_mapping[key]: value for key, value in state_dict.items()}
+            model.load_state_dict(state_dict_renamed)
+
+        elif opt.ft:
+            model.load_state_dict(state_dict, strict=False)
         else:
-            model.load_state_dict(torch.load(opt.saved_model))
+            model.load_state_dict(state_dict)
 
     if len(opt.initial_data) > 0:
         char_set = get_charset(opt, logger)
@@ -227,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_iter', type=int, default=300000, help='Number of iterations to train for')
     parser.add_argument('--val_interval', type=int, default=2000, help='Interval between each validation')
     parser.add_argument('--saved_model', type=str, default='', help="Path to model to continue training")
-    parser.add_argument('--transformation_path', type=str, default='', help="Path to model to load weights for Transformation stage")
+    parser.add_argument('--weights_mapping', type=str, default='', help="Path to weights mapping for loading pretrained model")
     parser.add_argument('--ft', action='store_true', help='Whether to do fine-tuning')
     parser.add_argument('--adam', action='store_true', help='Whether to use adam (default is Adadelta)')
     parser.add_argument('--lr', type=float, default=1, help='Learning rate, default=1.0 for Adadelta')

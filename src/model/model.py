@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn import Parameter
 
 from src.model.feature_extraction.rcnn import RCNNFeatureExtractor
 from src.model.feature_extraction.resnet import ResNetFeatureExtractor
@@ -73,15 +74,6 @@ class Model(nn.Module):
         else:
             raise Exception('Prediction is neither CTC or Attn')
 
-    def load_transformation_weights(self, path: str) -> None:
-        state_dict = torch.load(path, map_location=device)
-        filtered_dict = {key.replace("module.Transformation.LocalizationNetwork", "localization_network"): value for key, value in state_dict.items()
-                         if key.startswith("module.Transformation.LocalizationNetwork")}
-        filtered_dict_grid = {key.replace("module.Transformation.GridGenerator", "grid_generator").lower(): value for key, value in state_dict.items()
-                              if key.startswith("module.Transformation.GridGenerator")}
-        new_dict = {**filtered_dict, **filtered_dict_grid}
-        self.transformation.load_state_dict(new_dict)
-
     def save_tensor(self, inp, name: str, count: int = 10):
         for i in range(count):
             img = inp[i].permute(1, 2, 0)
@@ -117,6 +109,9 @@ class Model(nn.Module):
         if self.opt.prediction == 'CTC':
             self.prediction = nn.Linear(self.sequence_modeling_output, self.opt.num_class)
         elif self.opt.prediction == 'Attn':
-            self.prediction = Attention(self.sequence_modeling_output, self.opt.hidden_size, self.opt.num_class)
+            self.prediction.num_classes = self.opt.num_class
+            self.prediction.attention_cell.rnn.input_size = self.sequence_modeling_output + self.opt.num_class
+            self.prediction.attention_cell.rnn.weight_ih = Parameter(torch.empty((4 * self.opt.hidden_size, self.sequence_modeling_output + self.opt.num_class)))
+            self.prediction.generator = nn.Linear(self.opt.hidden_size, self.opt.num_class)
         else:
             raise Exception('Prediction is neither CTC or Attn')
