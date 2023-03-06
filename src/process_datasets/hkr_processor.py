@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import tempfile
 import zipfile
 
@@ -50,7 +51,7 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
             self.logger.info(f"HKR char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
-            data_df["path"] = f"{img_dir}/{self.dataset_name}_" + data_df.path
+            data_df["path"] = f"{self.dataset_name}_" + data_df.path
             train_df = data_df[data_df.stage == "train"]
             train_df = train_df.drop(columns=['stage'])
             val_df = data_df[data_df.stage == "val"]
@@ -92,3 +93,19 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
             data_dict["word"].append(ann_f["description"])
         data_df = pd.DataFrame(data_dict)
         return data_df
+
+
+if __name__ == "__main__":
+    out_path = "/Users/anastasiabogatenkova/work/hrtr/src_transformer"
+    img_dir = "img"
+    os.makedirs(out_path, exist_ok=True)
+    os.makedirs(os.path.join(out_path, img_dir), exist_ok=True)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    root.addHandler(handler)
+
+    p = HKRDatasetProcessor(logger=root)
+    p.process_dataset(out_path, img_dir, "hkr.txt")

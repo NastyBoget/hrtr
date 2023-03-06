@@ -8,3 +8,5 @@ datasets
 logs
 saved_models
 result
+src_transformer/img*
+src_transformer/annotations*

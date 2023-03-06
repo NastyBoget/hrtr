@@ -1,5 +1,27 @@
 # Handwritten Russian text recognition
 
+## TODO transformers
+
+- [X] Use convnext_base
+- [ ] Use runtime synthetic data generation
+- [ ] Use preprocessing
+- [ ] Use dataset with characters
+
+## TODO AttentionHTR
+
+- [ ] Use new binarization
+- [ ] Use new augmentation
+- [ ] Use dataset with characters
+
+## TODO general
+
+- [ ] try stackmix
+- [ ] try adding kohtd dataset
+- [ ] try training on all datasets
+- [ ] try GANs? (ScrabbleGAN)
+- [ ] try model from work about stackmix
+- [ ] unify different models
+
 ## Datasets
 
 | Name                                                                                                          | Size                                          |
@@ -35,7 +57,7 @@ HKR: val 9133 words in train, 242 words not in train
 |   CER    |  3.49   |
 |   WER    |  13.0   |
 
-## Results
+## Results for AttentionHTR
 
 ### Results without preprocessing and augmentation
 

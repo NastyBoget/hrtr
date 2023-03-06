@@ -1,26 +1,27 @@
 # Code from https://github.com/t0efL/end2end-HKR-research
 from omegaconf import OmegaConf
 
+# cyrillic synthetic ' !"%\'()+,-./0123456789:;=?R[]bcehioprstuxy«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё№'
+# hkr synthetic ' !"%(),-.0123456789:;?HoАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёғҚқҮӨө–—…'
+# cyrillic hkr synthetic ' !"%\'()+,-./0123456789:;=?HR[]bcehioprstuxy«»АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяёғҚқҮӨө–—…№'
+
 config = {
     'seed': 0xFACED,
     'training': {
         'num_epochs': 100,
         'early_stopping': 10,
-        'device': 'cuda'
+        'device': 'cpu'
     },
     'paths': {
         'datasets': {
-            'original': '/home/dedoc/hrtr/transformer/img_large/img',
-            'hkr': None,
+            'original': 'img',
             'stackmix': None,  # path to parts
-            'kohtd': None,
             'letters': None,
-            'kaggle': None,
-            'synthetics': None,
+            'generate': '/home/dedoc/hrtr/attention/fonts',  # path to fonts to generate data
         },
-        'path_to_train_labels': '/home/dedoc/hrtr/transformer/annotations/train_cyrillic_large.json',
-        'path_to_val_labels': '/home/dedoc/hrtr/transformer/annotations/test_cyrillic.json',
-        'save_dir': '/home/dedoc/hrtr/transformer/cyrillic_large',
+        'path_to_train_labels': 'annotations/train_hkr.json',
+        'path_to_val_labels': 'annotations/val_hkr.json',
+        'save_dir': 'out',
         'path_to_checkpoint': None,
         'path_to_pretrain': None
     },
@@ -33,7 +34,7 @@ config = {
             'persistent_workers': True,
         },
         'training_sizes': {
-            'samples_per_epoch': 500000,
+            'samples_per_epoch': 60000,
             'proportions': {
                 'original_train': 1,
                 'hkr': 0,

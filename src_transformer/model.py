@@ -9,16 +9,20 @@ import torch.nn.functional as F
 import torchvision
 from packaging import version
 from torch.distributions.constraints import Constraint
-from torch.nn import TransformerEncoderLayer, TransformerEncoder, LayerNorm, TransformerDecoder, TransformerDecoderLayer, Embedding, Transformer
-from transformers import BeamScorer, LogitsProcessorList, StoppingCriteriaList, MaxLengthCriteria, MaxTimeCriteria, HammingDiversityLogitsProcessor, \
+from torch.nn import TransformerEncoderLayer, TransformerEncoder, LayerNorm, TransformerDecoder, \
+    TransformerDecoderLayer, Embedding, Transformer
+from transformers import BeamScorer, LogitsProcessorList, StoppingCriteriaList, MaxLengthCriteria, MaxTimeCriteria, \
+    HammingDiversityLogitsProcessor, \
     RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor, \
-    MinLengthLogitsProcessor, PrefixConstrainedLogitsProcessor, InfNanRemoveLogitsProcessor, ForcedEOSTokenLogitsProcessor, BeamSearchScorer, \
+    MinLengthLogitsProcessor, PrefixConstrainedLogitsProcessor, InfNanRemoveLogitsProcessor, \
+    ForcedEOSTokenLogitsProcessor, BeamSearchScorer, \
     StoppingCriteria, TemperatureLogitsWarper, TopKLogitsWarper, TopPLogitsWarper
-from transformers.generation.utils import BeamSearchOutput, BeamSearchEncoderDecoderOutput, GreedySearchOutput, GreedySearchEncoderDecoderOutput, \
+from transformers.generation.utils import BeamSearchOutput, BeamSearchEncoderDecoderOutput, GreedySearchOutput, \
+    GreedySearchEncoderDecoderOutput, \
     SampleOutput, SampleEncoderDecoderOutput, BeamSampleOutput, BeamSampleEncoderDecoderOutput
 
 from coatnet import coatnet_0
-from convnext import convnext_small
+from convnext import convnext_base, convnext_small
 
 
 def torch_int_div(tensor1, tensor2):
@@ -104,8 +108,8 @@ class CRNN(nn.Module):
         decoder_layers = 4
         nhead = 4
 
-        self.feature_extractor = convnext_small(pretrained=True, in_chans=1)
-        self.feature_extractor_projection = nn.Linear(768, d_model)  # FIRST ARGUMENT IS CHANNEL COUNT OF BACKBONE
+        self.feature_extractor = convnext_base(pretrained=True, in_chans=1)
+        self.feature_extractor_projection = nn.Linear(1024, d_model)  # FIRST ARGUMENT IS CHANNEL COUNT OF BACKBONE
 
         self.transformer_encoder_pos = PositionalEncoding(d_model=d_model)
         self.transformer_encoder = TransformerEncoder(

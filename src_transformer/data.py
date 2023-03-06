@@ -163,49 +163,12 @@ class TrainSampler(DataSampler):
         self.safe_chars = set(config.data.alphabet)
         self.data = {}
 
-    def _load_hkr(self, hkr_path: str) -> List[DataItem]:
-        items = []
-        for ann_file_name in os.listdir(f'{hkr_path}/ann'):
-            with open(f'{hkr_path}/ann/{ann_file_name}', 'r') as ann_file:
-                ann = json.load(ann_file)
-
-            if ann["name"] in {'779_005_001'}:
-                print('skipping bad sample', ann['name'])
-                continue
-
-            img_path = f'{hkr_path}/img/{ann["name"]}.jpg'
-            if set(ann['description']) <= self.safe_chars and os.path.isfile(img_path) and len(ann['description']) <= 20:
-                items.append(RegularDataItem(img_path, ann['description'], should_remove_alpha=False, should_swap_background=False, can_apply_shadow=False, can_apply_optical_distortion=True))
-        return items
-
-    def _load_kohtd(self, kohtd_path: str) -> List[DataItem]:
-        items = []
-        for ann_file_name in os.listdir(f'{kohtd_path}/ann'):
-            with open(f'{kohtd_path}/ann/{ann_file_name}', 'r') as ann_file:
-                ann = json.load(ann_file)
-
-            if ann["name"] in {'779_005_001'}:
-                print('skipping bad sample', ann['name'])
-                continue
-
-            img_path = f'{kohtd_path}/img/{ann["name"]}'
-            if set(ann['description']) <= self.safe_chars and os.path.isfile(img_path) and len(ann['description']) <= 20:
-                items.append(RegularDataItem(img_path, ann['description'], should_remove_alpha=False, should_swap_background=False, can_apply_shadow=False, can_apply_optical_distortion=True))
-        return items
-
     def load_data(self):
         if self.paths.original is not None:
             dat = _load_original_data(self.orig_json_train, self.paths.original)
             self.data['original_train'] = cycling_iterator(dat)
             print(f'Loaded {len(dat)} of original train data')
-        if self.paths.hkr is not None:
-            dat = self._load_hkr(self.paths.hkr)
-            self.data['hkr'] = cycling_iterator(dat)
-            print(f'Loaded {len(dat)} of HKR data')
-        if self.paths.kohtd is not None:
-            dat = self._load_kohtd(self.paths.kohtd)
-            self.data['kohtd'] = cycling_iterator(dat)
-            print(f'Loaded {len(dat)} of KOHTD data')
+
         if self.paths.stackmix is not None:
             stackmix = StackMix(
                 mwe_tokens_dir=self.paths.stackmix,

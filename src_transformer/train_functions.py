@@ -18,8 +18,6 @@ def val_loop(data_loader, model, tokenizers, device):
     """Validation step."""
     print("Validation")
 
-    ru_chars = set('абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ')
-
     final_predictions = {k: {'cer': [], 'true': [], 'pred': []} for k in tokenizers.keys()}
 
     for data in tqdm(data_loader):
