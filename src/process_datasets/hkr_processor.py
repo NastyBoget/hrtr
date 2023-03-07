@@ -21,6 +21,7 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
 
+        # binarized data TODO
         self.data_url = "https://at.ispras.ru/owncloud/index.php/s/llLrs5lORQQXCYt/download"
         self.logger = logger
 
@@ -96,7 +97,7 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
 
 
 if __name__ == "__main__":
-    out_path = "/Users/anastasiabogatenkova/work/hrtr/src_transformer"
+    out_path = "/Users/anastasiabogatenkova/work/hrtr/transformer_model"
     img_dir = "img"
     os.makedirs(out_path, exist_ok=True)
     os.makedirs(os.path.join(out_path, img_dir), exist_ok=True)

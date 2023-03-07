@@ -6,7 +6,7 @@ from torch._utils import _accumulate
 from torch.utils.data import Subset
 
 from src.dataset.hierarchical_dataset import hierarchical_dataset
-from src.dataset.preprocessing.resize_normalization import AlignCollate
+from resize_normalization import AlignCollate
 from src.dataset.text_generation_dataset import TextGenerationDataset
 
 
