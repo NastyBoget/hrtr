@@ -14,15 +14,17 @@ class AbstractDatasetProcessor(ABC):
     |          | --- img_name_n
     |
     |--- gt_files as tables with image name and text of the image
-        |---------------------|
-        | img_name_1 | text_1 |
-        |------------|--------|
-        |           ...       |
-        |------------|--------|
-        | img_name_n | text_n |
-        |---------------------|
+        |-------------------------------------|
+        |         path        | text  | stage |
+        |-------------------------------------|
+        | img_dir/img_name_1 | text_1 | train |
+        |--------------------|--------|-------|
+        |                   ...               |
+        |--------------------|--------|-------|
+        | img_dir/img_name_n | text_n |  val  |
+        |-------------------------------------|
 
-    Names of gt_files should have prefix ending with _, e.g. train_gt_file, test_gt_file
+    Gt file should have header and have "," as separator. Stages: train, val, test
     """
 
     @property

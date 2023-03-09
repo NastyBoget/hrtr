@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 import tempfile
 import zipfile
 
@@ -21,7 +20,6 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
 
-        # binarized data TODO
         self.data_url = "https://at.ispras.ru/owncloud/index.php/s/llLrs5lORQQXCYt/download"
         self.logger = logger
 
@@ -48,25 +46,18 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
             data_df = self.__get_split(data_dir)
             char_set = set()
             for _, row in data_df.iterrows():
-                char_set = char_set | set(row["word"])
+                char_set = char_set | set(row["text"])
             self.logger.info(f"HKR char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
-            data_df["path"] = f"{self.dataset_name}_" + data_df.path
-            train_df = data_df[data_df.stage == "train"]
-            train_df = train_df.drop(columns=['stage'])
-            val_df = data_df[data_df.stage == "val"]
-            val_df = val_df.drop(columns=['stage'])
-            test1_df = data_df[data_df.stage == "test1"]
-            test1_df = test1_df.drop(columns=['stage'])
-            test2_df = data_df[data_df.stage == "test2"]
-            test2_df = test2_df.drop(columns=['stage'])
+            data_df["path"] = f"{img_dir}/{self.dataset_name}_" + data_df.path
+            data_df["sample_id"] = data_df.index
+            data_df.to_csv(os.path.join(out_dir, gt_file), sep=",", index=False)
 
-            test1_df.to_csv(os.path.join(out_dir, f"test1_{gt_file}"), sep="\t", index=False, header=False)
-            test2_df.to_csv(os.path.join(out_dir, f"test2_{gt_file}"), sep="\t", index=False, header=False)
-            val_df.to_csv(os.path.join(out_dir, f"val_{gt_file}"), sep="\t", index=False, header=False)
-            train_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
-            self.logger.info(f"{self.dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}; test1 = {test1_df.shape[0]}; test2 = {test2_df.shape[0]}")  # noqa
+            self.logger.info(f"{self.dataset_name} dataset length: train = {len(data_df[data_df.stage == 'train'])}; "
+                             f"val = {len(data_df[data_df.stage == 'val'])}; "
+                             f"test1 = {len(data_df[data_df.stage == 'test1'])}; "
+                             f"test2 = {len(data_df[data_df.stage == 'test2'])}")
 
             current_img_dir = os.path.join(data_dir, "img")
             destination_img_dir = os.path.join(out_dir, img_dir)
@@ -81,7 +72,7 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
         for _, row in split_df.iterrows():
             name2stage[row['id']] = row['stage']
         ann_dir = os.path.join(data_dir, "ann")
-        data_dict = {"path": [], "word": [], "stage": []}
+        data_dict = {"path": [], "text": [], "stage": []}
 
         for ann_file in os.listdir(ann_dir):
             if not ann_file.endswith(".json"):
@@ -91,22 +82,6 @@ class HKRDatasetProcessor(AbstractDatasetProcessor):
                 ann_f = json.load(f)
             data_dict["stage"].append(name2stage[ann_f['name']])
             data_dict["path"].append(f"{ann_f['name']}.jpg")
-            data_dict["word"].append(ann_f["description"])
+            data_dict["text"].append(ann_f["description"])
         data_df = pd.DataFrame(data_dict)
         return data_df
-
-
-if __name__ == "__main__":
-    out_path = "/Users/anastasiabogatenkova/work/hrtr/transformer_model"
-    img_dir = "img"
-    os.makedirs(out_path, exist_ok=True)
-    os.makedirs(os.path.join(out_path, img_dir), exist_ok=True)
-
-    root = logging.getLogger()
-    root.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    root.addHandler(handler)
-
-    p = HKRDatasetProcessor(logger=root)
-    p.process_dataset(out_path, img_dir, "hkr.txt")

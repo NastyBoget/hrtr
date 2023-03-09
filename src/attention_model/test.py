@@ -3,19 +3,20 @@ import logging
 import os
 from typing import Any, Tuple, List
 
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.utils.data
 from torch.nn.modules.loss import _Loss
 
-from averager import Averager
-from label_converting import Converter, AttnLabelConverter
-from model import Model
-from src.dataset.hierarchical_dataset import hierarchical_dataset
-from resize_normalization import AlignCollate
-from src.process_datasets.processors_list import get_processors_list
+from src.attention_model.averager import Averager
+from src.attention_model.label_converting import Converter, AttnLabelConverter
+from src.attention_model.model import Model
+from src.attention_model.resize_normalization import AlignCollate
+from src.attention_model.utils import get_charset
+from src.dataset.attention_dataset import AttentionDataset
 from src.utils.logger import get_logger
-from utils.metrics import string_accuracy, cer, wer
+from src.utils.metrics import string_accuracy, cer, wer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -54,11 +55,10 @@ def validation(model: torch.nn.DataParallel,
         preds_max_prob, _ = preds_prob.max(dim=2)
 
         for gt, pred, pred_max_prob in zip(labels, preds_str, preds_max_prob):
-            if 'Attn' in opt.prediction:
-                gt = gt[:gt.find('[s]')]
-                pred_eos = pred.find('[s]')
-                pred = pred[:pred_eos]  # prune after "end of sentence" token ([s])
-                pred_max_prob = pred_max_prob[:pred_eos]
+            gt = gt[:gt.find('[s]')]
+            pred_eos = pred.find('[s]')
+            pred = pred[:pred_eos]  # prune after "end of sentence" token ([s])
+            pred_max_prob = pred_max_prob[:pred_eos]
 
             if opt.write_errors and gt != pred:
                 logger.info(f'{gt:^43s} | {pred:^43s}')
@@ -78,26 +78,24 @@ def validation(model: torch.nn.DataParallel,
 
 
 def test(opt: Any, logger: logging.Logger) -> None:
-    opt.select_data = opt.select_data.split('-')
-    opt.character = "".join(sorted(list(set("".join(p.charset for p in get_processors_list(logger) if p.dataset_name in opt.select_data)))))
+    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",")
+    opt.character = get_charset(data_df)
+    test_df = data_df[data_df.stage == "test"]
     converter = AttnLabelConverter(opt.character)
+    align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
     opt.num_class = len(converter.character)
-    opt.input_channel = 3 if opt.rgb else 1
+    test_dataset = AttentionDataset(test_df, opt.data_dir, opt)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=True, collate_fn=align_collate, pin_memory=True)
 
     model = Model(opt, logger)
-    logger.info(f'Model input parameters: {opt.img_h}, {opt.img_w}, {opt.num_fiducial}, {opt.input_channel}, {opt.output_channel}, {opt.hidden_size},'
-                f' {opt.num_class}, {opt.batch_max_length}, {opt.transformation}, {opt.feature_extraction}, {opt.sequence_modeling}, {opt.prediction}')
     model = torch.nn.DataParallel(model).to(device)
     logger.info(f'Loading pretrained attention_model from {opt.saved_model}')
     model.load_state_dict(torch.load(opt.saved_model, map_location=device))
-    criterion = torch.nn.CTCLoss(zero_infinity=True).to(device) if 'CTC' in opt.prediction else torch.nn.CrossEntropyLoss(ignore_index=0).to(device) # noqa
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=0).to(device) # noqa
     model.eval()
 
     with torch.no_grad():
-        align_collate_evaluation = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
-        eval_data = hierarchical_dataset(root=opt.test_data, opt=opt, logger=logger)
-        evaluation_loader = torch.utils.data.DataLoader(eval_data, batch_size=opt.batch_size, shuffle=False, num_workers=opt.workers, collate_fn=align_collate_evaluation, pin_memory=True)  # noqa
-        _, label_list, prediction_list, _ = validation(model, criterion, evaluation_loader, converter, opt, logger)
+        _, label_list, prediction_list, _ = validation(model, criterion, test_loader, converter, opt, logger)
         logger.info(f'Accuracy: {string_accuracy(prediction_list, label_list):0.8f}, CER: {cer(prediction_list, label_list):0.8f}, WER: {wer(prediction_list, label_list):0.8f}')
 
 
@@ -105,11 +103,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
-    parser.add_argument('--test_data', type=str, help='Path to evaluation dataset', required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to evaluation dataset', required=True)
+    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
-    parser.add_argument('--select_data', type=str, help='List of datasets on which attention_model was trained separated by -, e.g. hkr-synthetic', required=True)  # noqa
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
-    parser.add_argument('--workers', type=int, help='Number of data loading workers', default=0)
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
 
     # Data processing
@@ -118,13 +115,6 @@ if __name__ == '__main__':
     parser.add_argument('--img_w', type=int, default=100, help='The width of the input image')
     parser.add_argument('--rgb', action='store_true', help='Use rgb input')
     parser.add_argument('--pad', action='store_true', help='Whether to keep ratio then pad for image resize')
-    parser.add_argument('--data_filtering_off', action='store_true', help='For data_filtering_off mode')
-
-    # Model Architecture
-    parser.add_argument('--num_fiducial', type=int, default=20, help='Number of fiducial points of TPS-STN')
-    parser.add_argument('--input_channel', type=int, default=1, help='The number of input channel of Feature extractor')
-    parser.add_argument('--output_channel', type=int, default=512, help='The number of output channel of Feature extractor')
-    parser.add_argument('--hidden_size', type=int, default=256, help='The size of the LSTM hidden state')
 
     opt = parser.parse_args()
 

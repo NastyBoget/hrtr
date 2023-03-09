@@ -20,7 +20,7 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
         super().__init__()
         # small (60K) https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
         # large (4M) https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download
-        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download"
+        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download"
         self.logger = logger
 
     @property
@@ -41,17 +41,22 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
             data_dir = os.path.join(data_dir, "synthetic")
             self.logger.info("Dataset downloaded")
 
-            df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "word"])
+            df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "text"])
+            df["path"] = f"{img_dir}" + df.path.str[3:]  # data startswith img
             char_set = set()
             for _, row in df.iterrows():
-                char_set = char_set | set(row["word"])
+                char_set = char_set | set(row["text"])
             self.logger.info(f"{self.dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
             train_df, val_df = train_test_split(df, test_size=0.05, random_state=42, shuffle=True)
-            train_df.to_csv(os.path.join(out_dir, f"train_{gt_file}"), sep="\t", index=False, header=False)
-            val_df.to_csv(os.path.join(out_dir, f"val_{gt_file}"), sep="\t", index=False, header=False)
+            train_df["stage"] = "train"
+            val_df["stage"] = "val"
+            df = pd.concat([train_df, val_df], ignore_index=True)
+
             self.logger.info(f"{self.dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}")
+            df["sample_id"] = df.index
+            df.to_csv(os.path.join(out_dir, gt_file), sep=",", index=False)
 
             destination_img_dir = os.path.join(out_dir, img_dir)
             current_img_dir = os.path.join(data_dir, "img")
