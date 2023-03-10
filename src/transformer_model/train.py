@@ -200,9 +200,7 @@ def run_eval(opt, logger):
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, collate_fn=collate_fn, pin_memory=True)
 
     cer_avg, wer_avg, acc_avg = val_loop(val_loader, model, tokenizers, logger)
-    logger.info('Avg CER:', cer_avg)
-    logger.info('Avg WER:', wer_avg)
-    logger.info('Avg accuracy:', acc_avg)
+    logger.info(f"Accuracy: {acc_avg}, CER: {cer_avg}, WER: {wer_avg}")
     gc.collect()
 
 

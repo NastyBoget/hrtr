@@ -80,7 +80,7 @@ def validation(model: torch.nn.DataParallel,
 def test(opt: Any, logger: logging.Logger) -> None:
     data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",")
     opt.character = get_charset(data_df)
-    test_df = data_df[data_df.stage == "test"]
+    test_df = data_df[data_df.stage == opt.eval_stage]
     converter = AttnLabelConverter(opt.character)
     align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
     opt.num_class = len(converter.character)
@@ -89,7 +89,7 @@ def test(opt: Any, logger: logging.Logger) -> None:
 
     model = Model(opt, logger)
     model = torch.nn.DataParallel(model).to(device)
-    logger.info(f'Loading pretrained attention_model from {opt.saved_model}')
+    logger.info(f'Loading pretrained model from {opt.saved_model}')
     model.load_state_dict(torch.load(opt.saved_model, map_location=device))
     criterion = torch.nn.CrossEntropyLoss(ignore_index=0).to(device) # noqa
     model.eval()
@@ -108,6 +108,7 @@ if __name__ == '__main__':
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
+    parser.add_argument('--eval_stage', type=str, default='test', help='Name of test dataset stage')
 
     # Data processing
     parser.add_argument('--batch_max_length', type=int, default=40, help='Maximum label length')

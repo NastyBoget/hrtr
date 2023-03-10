@@ -2,9 +2,9 @@ import torch
 from torch import nn
 
 
-def get_ocr_model(config, pretrained=True):
+def get_ocr_model(params, pretrained=True):
     backbone = get_resnet34_backbone(pretrained=pretrained)
-    return RecognitionModel(backbone, **config['model']['params'])
+    return RecognitionModel(backbone, **params)
 
 
 def get_resnet34_backbone(pretrained=True):
