@@ -21,9 +21,9 @@ from src.attention_model.label_converting import AttnLabelConverter, Converter
 from src.attention_model.model import Model
 from src.attention_model.resize_normalization import AlignCollate
 from src.attention_model.test import validation
-from src.attention_model.utils import get_charset
 from src.dataset.attention_dataset import AttentionDataset
 from src.dataset.transforms import transforms
+from src.dataset.utils import get_charset
 from src.utils.logger import get_logger
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -40,7 +40,7 @@ def prepare_data(opt: Any) -> Tuple[torch.utils.data.DataLoader, torch.utils.dat
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, collate_fn=align_collate, pin_memory=True)
 
     val_dataset = AttentionDataset(val_df, opt.data_dir, opt)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=True, collate_fn=align_collate, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, collate_fn=align_collate, pin_memory=True)
     return train_loader, val_loader
 
 
@@ -130,7 +130,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
         epoch += 1
 
         # validation part
-        elapsed_time = time.time() - start_time
+        elapsed_time = int((time.time() - start_time) / 60.)
         model.eval()
         with torch.no_grad():
             valid_loss, label_list, prediction_list, confidence_score_list = validation(model, criterion, val_loader, converter, opt, logger)
@@ -139,7 +139,7 @@ def train(opt: Any, logger: logging.Logger) -> None:
 
         # training loss and validation loss
         train_loss = loss_averager.val()
-        logger.info(f'[Epoch {epoch}/{opt.epochs}] Train loss: {train_loss:0.5f}, valid loss: {valid_loss:0.5f}, elapsed time: {elapsed_time:0.5f}')
+        logger.info(f'[Epoch {epoch}/{opt.epochs}] Train loss: {train_loss:0.5f}, valid loss: {valid_loss:0.5f}, elapsed time: {elapsed_time} min')
         loss_averager.reset()
         logger.info(f'{"Current accuracy":17s}: {current_accuracy:0.3f}, {"current CER":17s}: {current_cer:0.2f}, {"current WER":17s}: {current_wer:0.2f}')
         best_accuracy = current_accuracy if current_accuracy > best_accuracy else best_accuracy

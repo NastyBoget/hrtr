@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch
 import math
 
+
 class PositionalEncoding(nn.Module):
     """Character position encoding."""
 

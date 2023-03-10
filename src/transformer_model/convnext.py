@@ -242,8 +242,8 @@ def convnext_tiny(pretrained=False, **kwargs):
         url = model_urls['convnext_tiny_1k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu", check_hash=True)
         if 'in_chans' in kwargs and kwargs['in_chans'] != 3:
-            del checkpoint['attention_model']['downsample_layers.0.0.weight']
-        model.load_state_dict(checkpoint["attention_model"], strict=False)
+            del checkpoint['model']['downsample_layers.0.0.weight']
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
 
@@ -253,8 +253,8 @@ def convnext_small(pretrained=False, **kwargs):
         url = model_urls['convnext_small_1k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu")
         if 'in_chans' in kwargs and kwargs['in_chans'] != 3:
-            del checkpoint['attention_model']['downsample_layers.0.0.weight']
-        model.load_state_dict(checkpoint["attention_model"], strict=False)
+            del checkpoint['model']['downsample_layers.0.0.weight']
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
 
@@ -264,8 +264,8 @@ def convnext_base(pretrained=False, in_22k=False, **kwargs):
         url = model_urls['convnext_base_22k'] if in_22k else model_urls['convnext_base_1k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu")
         if 'in_chans' in kwargs and kwargs['in_chans'] != 3:
-            del checkpoint['attention_model']['downsample_layers.0.0.weight']
-        model.load_state_dict(checkpoint["attention_model"], strict=False)
+            del checkpoint['model']['downsample_layers.0.0.weight']
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
 
@@ -275,8 +275,8 @@ def convnext_large(pretrained=False, in_22k=False, **kwargs):
         url = model_urls['convnext_large_22k'] if in_22k else model_urls['convnext_large_1k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu")
         if 'in_chans' in kwargs and kwargs['in_chans'] != 3:
-            del checkpoint['attention_model']['downsample_layers.0.0.weight']
-        model.load_state_dict(checkpoint["attention_model"], strict=False)
+            del checkpoint['model']['downsample_layers.0.0.weight']
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model
 
 
@@ -287,6 +287,6 @@ def convnext_xlarge(pretrained=False, in_22k=False, **kwargs):
         url = model_urls['convnext_xlarge_22k']
         checkpoint = torch.hub.load_state_dict_from_url(url=url, map_location="cpu")
         if 'in_chans' in kwargs and kwargs['in_chans'] != 3:
-            del checkpoint['attention_model']['downsample_layers.0.0.weight']
-        model.load_state_dict(checkpoint["attention_model"], strict=False)
+            del checkpoint['model']['downsample_layers.0.0.weight']
+        model.load_state_dict(checkpoint["model"], strict=False)
     return model

@@ -13,9 +13,4 @@ class AbstractDataset(Dataset):
         return len(self.texts)
 
     def __getitem__(self, idx: int) -> dict:
-        # image = cv2.imread(os.path.join(self.data_dir, self.paths[idx]))
-        # image = self.image_preprocessing(image)
-        # text = self.texts[idx]
-        # encoded = self.label_encoder(text)
-        # return {"image": image, "text": text, "encoded": encoded}
         pass

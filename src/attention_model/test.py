@@ -13,8 +13,8 @@ from src.attention_model.averager import Averager
 from src.attention_model.label_converting import Converter, AttnLabelConverter
 from src.attention_model.model import Model
 from src.attention_model.resize_normalization import AlignCollate
-from src.attention_model.utils import get_charset
 from src.dataset.attention_dataset import AttentionDataset
+from src.dataset.utils import get_charset
 from src.utils.logger import get_logger
 from src.utils.metrics import string_accuracy, cer, wer
 
@@ -85,7 +85,7 @@ def test(opt: Any, logger: logging.Logger) -> None:
     align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
     opt.num_class = len(converter.character)
     test_dataset = AttentionDataset(test_df, opt.data_dir, opt)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=True, collate_fn=align_collate, pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, collate_fn=align_collate, pin_memory=True)
 
     model = Model(opt, logger)
     model = torch.nn.DataParallel(model).to(device)

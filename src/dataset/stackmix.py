@@ -21,7 +21,6 @@ class StackMix:
         self.all_mwe_tokens = None
         self.corpus = []
         self.tokenizers = {}
-        #
         self.background_smooth = BackgroundSmoothing(p=p_background_smoothing)
 
     def run_corpus_stackmix(self, tokenizer=None):
@@ -95,11 +94,6 @@ class StackMix:
         img = image.copy()
         h, w, c = img.shape
         d_w = int(round(np.tan(angle * np.pi / 180) * (h // 2)))
-        # TODO FIX WITH ANGLES!!!!
-        # left_mask = np.array([[x1 - d_w, 0], [x1 - d_w, h], [x1 + d_w, 0]])
-        # right_mask = np.array([[x2 + d_w, 0], [x2 + d_w, h], [x2 - d_w, h]])
-        # cv2.fillPoly(img, pts =[left_mask, right_mask], color=(0, 0, 0))
-        #####
         return img[:, max(x1 - d_w, 0): min(x2 + d_w, w), :], x1 - d_w
 
     @staticmethod

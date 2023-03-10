@@ -24,7 +24,7 @@ def cer(pred_texts: List[str], gt_texts: List[str]) -> float:
     for pred_text, gt_text in zip(pred_texts, gt_texts):
         lev_distances += levenshtein_distance(pred_text, gt_text)
         num_gt_chars += len(gt_text)
-    return lev_distances / num_gt_chars
+    return lev_distances / num_gt_chars * 100.
 
 
 def wer(pred_texts: List[str], gt_texts: List[str]) -> float:
@@ -34,7 +34,7 @@ def wer(pred_texts: List[str], gt_texts: List[str]) -> float:
         gt_words, pred_words = gt_text.split(), pred_text.split()
         lev_distances += levenshtein_distance(pred_words, gt_words)
         num_gt_words += len(gt_words)
-    return lev_distances / num_gt_words
+    return lev_distances / num_gt_words * 100.
 
 
 def string_accuracy(pred_texts: List[str], gt_texts: List[str]) -> float:
@@ -42,4 +42,4 @@ def string_accuracy(pred_texts: List[str], gt_texts: List[str]) -> float:
     correct = 0
     for pred_text, gt_text in zip(pred_texts, gt_texts):
         correct += int(pred_text == gt_text)
-    return correct / len(gt_texts)
+    return correct / len(gt_texts) * 100.

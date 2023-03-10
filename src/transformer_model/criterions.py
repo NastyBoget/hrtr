@@ -16,10 +16,6 @@ class FocalCTCLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, log_probs: Tensor, targets: Tensor, input_lengths: Tensor, target_lengths: Tensor) -> Tensor:
-        # ctc_loss = tf.nn.ctc_loss(labels=targets, inputs=logits, sequence_length=seq_len, time_major=True)
-        #     p= tf.exp(-ctc_loss)
-        #     focal_ctc_loss= tf.multiply(tf.multiply(alpha,tf.pow((1-p),gamma)),ctc_loss) #((alpha)*((1-p)**gamma)*(ctc_loss))
-        #     loss = tf.reduce_mean(focal_ctc_loss)
         ctc_loss = F.ctc_loss(log_probs, targets, input_lengths, target_lengths, self.blank, 'none', self.zero_infinity) / target_lengths.to(log_probs.device)
         p = torch.exp(-ctc_loss)
         focal_ctc_loss = ctc_loss * (self.alpha * torch.pow(1 - p, self.gamma))

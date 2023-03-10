@@ -9,16 +9,12 @@ import torch.nn.functional as F
 import torchvision
 from packaging import version
 from torch.distributions.constraints import Constraint
-from torch.nn import TransformerEncoderLayer, TransformerEncoder, LayerNorm, TransformerDecoder, \
-    TransformerDecoderLayer, Embedding, Transformer
-from transformers import BeamScorer, LogitsProcessorList, StoppingCriteriaList, MaxLengthCriteria, MaxTimeCriteria, \
-    HammingDiversityLogitsProcessor, \
-    RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor, \
-    MinLengthLogitsProcessor, PrefixConstrainedLogitsProcessor, InfNanRemoveLogitsProcessor, \
-    ForcedEOSTokenLogitsProcessor, BeamSearchScorer, \
+from torch.nn import TransformerEncoderLayer, TransformerEncoder, LayerNorm, TransformerDecoder, TransformerDecoderLayer, Embedding, Transformer
+from transformers import BeamScorer, LogitsProcessorList, StoppingCriteriaList, MaxLengthCriteria, MaxTimeCriteria, HammingDiversityLogitsProcessor, \
+    RepetitionPenaltyLogitsProcessor, NoRepeatNGramLogitsProcessor, NoBadWordsLogitsProcessor, MinLengthLogitsProcessor, \
+    PrefixConstrainedLogitsProcessor, InfNanRemoveLogitsProcessor, ForcedEOSTokenLogitsProcessor, BeamSearchScorer, \
     StoppingCriteria, TemperatureLogitsWarper, TopKLogitsWarper, TopPLogitsWarper
-from transformers.generation.utils import BeamSearchOutput, BeamSearchEncoderDecoderOutput, GreedySearchOutput, \
-    GreedySearchEncoderDecoderOutput, \
+from transformers.generation.utils import BeamSearchOutput, BeamSearchEncoderDecoderOutput, GreedySearchOutput, GreedySearchEncoderDecoderOutput, \
     SampleOutput, SampleEncoderDecoderOutput, BeamSampleOutput, BeamSampleEncoderDecoderOutput
 
 from coatnet import coatnet_0
@@ -248,12 +244,6 @@ class CRNN(nn.Module):
             beam_idx = beam_outputs["next_beam_indices"]
 
             decoder_inputs = torch.cat([decoder_inputs[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
-
-            # model_kwargs = self._update_model_kwargs_for_generation(
-            #     outputs, model_kwargs, is_encoder_decoder=self.config.is_encoder_decoder
-            # )
-            # if model_kwargs["past"] is not None:
-            #     model_kwargs["past"] = self._reorder_cache(model_kwargs["past"], beam_idx)
 
             beam_indices = tuple((beam_indices[beam_idx[i]] + (beam_idx[i],) for i in range(len(beam_indices))))
 
