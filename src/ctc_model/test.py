@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
     parser.add_argument('--data_dir', type=str, help='Path to evaluation dataset', required=True)
-    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
+    parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
     os.makedirs(opt.out_dir, exist_ok=True)
 
-    df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",", dtype={"text": str}, index_col='sample_id')
+    df = pd.read_csv(os.path.join(opt.data_dir, opt.label_files[0]), sep=",", dtype={"text": str}, index_col='sample_id')
     charset = get_charset(df)
     opt.charset = charset
 

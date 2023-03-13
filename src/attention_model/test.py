@@ -78,7 +78,8 @@ def validation(model: torch.nn.DataParallel,
 
 
 def test(opt: Any, logger: logging.Logger) -> None:
-    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",")
+    label_file = opt.label_files[0]
+    data_df = pd.read_csv(os.path.join(opt.data_dir, label_file), sep=",")
     opt.character = get_charset(data_df)
     test_df = data_df[data_df.stage == opt.eval_stage]
     converter = AttnLabelConverter(opt.character)
@@ -103,8 +104,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
-    parser.add_argument('--data_dir', type=str, help='Path to evaluation dataset', required=True)
-    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
+    parser.add_argument('--data_dir', type=str, help='Path to dataset', required=True)
+    parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')

@@ -30,16 +30,21 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def prepare_data(opt: Any) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
-    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",", dtype={"text": str})
-    opt.character = get_charset(data_df)
-    train_df = data_df[data_df.stage == "train"]
-    val_df = data_df[data_df.stage == "val"]
+    train_df_list, val_df_list = [], []
+    opt.character = ""
+
+    for label_file in opt.label_files:
+        data_df = pd.read_csv(os.path.join(opt.data_dir, label_file), sep=",", dtype={"text": str})
+        opt.character += get_charset(data_df)
+        train_df_list.append(data_df[data_df.stage == "train"])
+        val_df_list.append(data_df[data_df.stage == "val"])
+    opt.character = "".join(sorted(list(set(opt.character))))
 
     align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
-    train_dataset = AttentionDataset(train_df, opt.data_dir, opt, transforms=transforms)
+    train_dataset = AttentionDataset(train_df_list, opt.data_dir, opt, transforms=transforms)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, collate_fn=align_collate, pin_memory=True)
 
-    val_dataset = AttentionDataset(val_df, opt.data_dir, opt)
+    val_dataset = AttentionDataset(val_df_list, opt.data_dir, opt)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, collate_fn=align_collate, pin_memory=True)
     return train_loader, val_loader
 
@@ -178,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
     parser.add_argument('--out_dir', help='Where to store models', required=True)
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
-    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
+    parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')

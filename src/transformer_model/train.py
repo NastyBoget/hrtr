@@ -96,9 +96,15 @@ def predict(images, image_masks, model, tokenizers):
 
 
 def run_train(opt, logger):
-    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",", dtype={"text": str})
-    charset = get_charset(data_df)
-    opt.charset = charset
+    train_df_list, val_df_list = [], []
+    opt.charset = ""
+
+    for label_file in opt.label_files:
+        data_df = pd.read_csv(os.path.join(opt.data_dir, label_file), sep=",", dtype={"text": str})
+        opt.charset += get_charset(data_df)
+        train_df_list.append(data_df[data_df.stage == "train"])
+        val_df_list.append(data_df[data_df.stage == "val"])
+    opt.charset = "".join(sorted(list(set(opt.charset))))
 
     logger.info('---------------------------------------- Options ----------------------------------------')
     args = vars(opt)
@@ -106,8 +112,8 @@ def run_train(opt, logger):
         logger.info(f'{str(k)}: {str(v)}')
     logger.info('-----------------------------------------------------------------------------------------')
 
-    tokenizer_ctc = CTCTokenizer(charset)
-    tokenizer_transformer = TransformerTokenizer(charset)
+    tokenizer_ctc = CTCTokenizer(opt.charset)
+    tokenizer_transformer = TransformerTokenizer(opt.charset)
     tokenizers = {'ctc': tokenizer_ctc, 'transformer': tokenizer_transformer}
     params = {'max_new_tokens': 30, 'min_length': 1, 'num_beams': 1, 'num_beam_groups': 1, 'do_sample': False}
     model = CRNN(n_ctc=tokenizer_ctc.get_num_chars(), n_transformer_decoder=tokenizer_transformer.get_num_chars(), transformer_decoding_params=params)
@@ -138,10 +144,8 @@ def run_train(opt, logger):
         start_epoch = cp["epoch"]
         del cp
 
-    train_df = data_df[data_df.stage == "train"]
-    val_df = data_df[data_df.stage == "val"]
-    train_dataset = TransformerDataset(train_df, opt.data_dir, tokenizers, transforms)
-    val_dataset = TransformerDataset(val_df, opt.data_dir, tokenizers)
+    train_dataset = TransformerDataset(train_df_list, opt.data_dir, tokenizers, transforms)
+    val_dataset = TransformerDataset(val_df_list, opt.data_dir, tokenizers)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=opt.batch_size, collate_fn=collate_fn, shuffle=True, pin_memory=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, collate_fn=collate_fn, pin_memory=True)
 
@@ -178,7 +182,7 @@ def run_train(opt, logger):
 
 
 def run_eval(opt, logger):
-    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",", dtype={"text": str})
+    data_df = pd.read_csv(os.path.join(opt.data_dir, opt.label_files[0]), sep=",", dtype={"text": str})
     charset = get_charset(data_df)
     val_df = data_df[data_df.stage == opt.eval_stage]
 
@@ -210,7 +214,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
     parser.add_argument('--out_dir', help='Where to store models', required=True)
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
-    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
+    parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--batch_size', type=int, default=64, help='Input batch size')
     parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')

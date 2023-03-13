@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 
 class AbstractDatasetProcessor(ABC):
@@ -29,19 +30,19 @@ class AbstractDatasetProcessor(ABC):
 
     @property
     @abstractmethod
-    def dataset_name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
     def charset(self) -> str:
         pass
 
     @abstractmethod
-    def process_dataset(self, out_dir: str, img_dir: str, gt_file: str) -> None:
+    def can_process(self, d_name: str) -> bool:
+        pass
+
+    @abstractmethod
+    def process_dataset(self, out_dir: str, img_dir: str, gt_file: str, dataset_name: str) -> None:
         """
         :param out_dir: directory path for saving images and groundtruth file
         :param img_dir: directory name inside out_dir for saving images
         :param gt_file: name of the groundtruth file
+        :param dataset_name: name of the dataset
         """
         pass

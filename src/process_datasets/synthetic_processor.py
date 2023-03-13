@@ -13,32 +13,35 @@ from process_datasets.abstract_dataset_processor import AbstractDatasetProcessor
 
 class SyntheticDatasetProcessor(AbstractDatasetProcessor):
 
-    __dataset_name = "synthetic"
+    __dataset_names = ["synthetic", "gan", "stackmix"]
     __charset = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
 
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
         # small (60K) https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
         # large (4M) https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download
-        self.data_url = "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download"
+        self.data_urls = {
+            "synthetic": "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download",
+            "gan": "",
+            "stackmix": ""
+        }
         self.logger = logger
 
-    @property
-    def dataset_name(self) -> str:
-        return self.__dataset_name
+    def can_process(self, d_name: str) -> bool:
+        return d_name in self.__dataset_names
 
     @property
     def charset(self) -> str:
         return self.__charset
 
-    def process_dataset(self, out_dir: str, img_dir: str, gt_file: str) -> None:
+    def process_dataset(self, out_dir: str, img_dir: str, gt_file: str, dataset_name: str) -> None:
         with tempfile.TemporaryDirectory() as data_dir:
             archive = os.path.join(data_dir, "archive.zip")
-            self.logger.info(f"Downloading {self.dataset_name} dataset...")
-            wget.download(self.data_url, archive)
+            self.logger.info(f"Downloading {dataset_name} dataset...")
+            wget.download(self.data_urls[dataset_name], archive)
             with zipfile.ZipFile(archive, 'r') as zip_ref:
                 zip_ref.extractall(data_dir)
-            data_dir = os.path.join(data_dir, "synthetic")
+            data_dir = os.path.join(data_dir, dataset_name)
             self.logger.info("Dataset downloaded")
 
             df = pd.read_csv(os.path.join(data_dir, "gt.txt"), sep="\t", names=["path", "text"])
@@ -46,7 +49,7 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
             char_set = set()
             for _, row in df.iterrows():
                 char_set = char_set | set(row["text"])
-            self.logger.info(f"{self.dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
+            self.logger.info(f"{dataset_name} char set: {repr(''.join(sorted(list(char_set))))}")
             self.__charset = char_set
 
             train_df, val_df = train_test_split(df, test_size=0.05, random_state=42, shuffle=True)
@@ -54,7 +57,7 @@ class SyntheticDatasetProcessor(AbstractDatasetProcessor):
             val_df["stage"] = "val"
             df = pd.concat([train_df, val_df], ignore_index=True)
 
-            self.logger.info(f"{self.dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}")
+            self.logger.info(f"{dataset_name} dataset length: train = {train_df.shape[0]}; val = {val_df.shape[0]}")
             df["sample_id"] = df.index
             df.to_csv(os.path.join(out_dir, gt_file), sep=",", index=False)
 

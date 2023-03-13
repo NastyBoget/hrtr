@@ -21,7 +21,8 @@ def get_processors_list(logger: logging.Logger) -> List[AbstractDatasetProcessor
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--datasets_list', nargs='+', required=True, help='List of datasets names, options [hkr, cyrillic, synthetic]')
+    parser.add_argument('-n', '--datasets_list', nargs='+', required=True, help='List of datasets names, options: '
+                                                                                '[hkr, cyrillic, synthetic, gan, stackmix]')
     parser.add_argument('--out_dir', type=str, help='Directory for saving dataset', required=True)
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
@@ -32,10 +33,11 @@ if __name__ == "__main__":
     logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
     processors = get_processors_list(logger)
 
-    for p in processors:
-        if p.dataset_name not in opt.datasets_list:
-            continue
+    for dataset_name in opt.datasets_list:
+        for p in processors:
+            if not p.can_process(dataset_name):
+                continue
 
-        img_dir = f"img_{p.dataset_name}"
-        os.makedirs(os.path.join(opt.out_dir, img_dir), exist_ok=True)
-        p.process_dataset(opt.out_dir, img_dir, f"gt_{p.dataset_name}.csv")
+            img_dir = f"img_{dataset_name}"
+            os.makedirs(os.path.join(opt.out_dir, img_dir), exist_ok=True)
+            p.process_dataset(opt.out_dir, img_dir, f"gt_{dataset_name}.csv", dataset_name)

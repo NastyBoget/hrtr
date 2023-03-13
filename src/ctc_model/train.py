@@ -25,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
     parser.add_argument('--out_dir', help='Where to store models', required=True)
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
-    parser.add_argument('--label_file', type=str, help='Name of the file with labels', required=True)
+    parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
@@ -37,9 +37,15 @@ if __name__ == '__main__':
     logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
     os.makedirs(opt.out_dir, exist_ok=True)
 
-    df = pd.read_csv(os.path.join(opt.data_dir, opt.label_file), sep=",", dtype={"text": str}, index_col='sample_id')
-    charset = get_charset(df)
-    opt.charset = charset
+    train_df_list, val_df_list = [], []
+    opt.charset = ""
+
+    for label_file in opt.label_files:
+        data_df = pd.read_csv(os.path.join(opt.data_dir, label_file), sep=",", dtype={"text": str})
+        opt.charset += get_charset(data_df)
+        train_df_list.append(data_df[data_df.stage == "train"])
+        val_df_list.append(data_df[data_df.stage == "val"])
+    opt.charset = "".join(sorted(list(set(opt.charset))))
 
     logger.info('---------------------------------------- Options ----------------------------------------')
     args = vars(opt)
@@ -48,12 +54,12 @@ if __name__ == '__main__':
     logger.info('-----------------------------------------------------------------------------------------')
 
     utils.seed_everything(opt.manual_seed)
-    ctc_labeling = CTCLabeling(charset)
+    ctc_labeling = CTCLabeling(opt.charset)
 
-    train_dataset = CTCDataset(df[df.stage == "train"], opt.data_dir, ctc_labeling, transforms)
-    val_dataset = CTCDataset(df[df.stage == 'val'], opt.data_dir, ctc_labeling)
+    train_dataset = CTCDataset(train_df_list, opt.data_dir, ctc_labeling, transforms)
+    val_dataset = CTCDataset(val_df_list, opt.data_dir, ctc_labeling)
 
-    model = get_ocr_model({'time_feature_count': 256, 'lstm_hidden': 256, 'lstm_len': 3, 'n_class': len(charset) + 1}, pretrained=True)
+    model = get_ocr_model({'time_feature_count': 256, 'lstm_hidden': 256, 'lstm_len': 3, 'n_class': len(opt.charset) + 1}, pretrained=True)
 
     model = model.to(device)
     criterion = torch.nn.CTCLoss(zero_infinity=True).to(device)
