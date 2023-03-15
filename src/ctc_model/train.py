@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 
 import pandas as pd
 import torch
@@ -36,6 +37,8 @@ if __name__ == '__main__':
     os.makedirs(opt.log_dir, exist_ok=True)
     logger = get_logger(out_file=os.path.join(opt.log_dir, opt.log_name))
     os.makedirs(opt.out_dir, exist_ok=True)
+
+    start_time = time.time()
 
     train_df_list, val_df_list = [], []
     opt.charset = ""
@@ -104,3 +107,5 @@ if __name__ == '__main__':
                 ctc_labeling=ctc_labeling,
             )
     experiment.destroy()
+    elapsed_time = (time.time() - start_time) / 60
+    logger.info(f"Overall elapsed time: {elapsed_time:.3f} min")

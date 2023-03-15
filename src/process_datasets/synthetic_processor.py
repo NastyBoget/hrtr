@@ -13,17 +13,18 @@ from process_datasets.abstract_dataset_processor import AbstractDatasetProcessor
 
 class SyntheticDatasetProcessor(AbstractDatasetProcessor):
 
-    __dataset_names = ["synthetic", "gan", "stackmix"]
-    __charset = ' !"%(),-.0123456789:;?АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюя'
+    __dataset_names = ["synthetic_hkr", "gan_hkr", "stackmix_hkr", "synthetic_cyrillic", "gan_cyrillic", "stackmix_cyrillic"]
 
     def __init__(self, logger: logging.Logger) -> None:
         super().__init__()
-        # small (60K) https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download
-        # large (4M) https://at.ispras.ru/owncloud/index.php/s/d8TDv92ayoGvFiM/download
+
         self.data_urls = {
-            "synthetic": "https://at.ispras.ru/owncloud/index.php/s/jgApabH3GK2bgUG/download",
-            "gan": "",
-            "stackmix": ""
+            "synthetic_hkr": "",
+            "gan_hkr": "",
+            "stackmix_hkr": "",  # 2476836 images
+            "synthetic_cyrillic": "",
+            "gan_cyrillic": "",
+            "stackmix_cyrillic": ""  # 3700269 images
         }
         self.logger = logger
 

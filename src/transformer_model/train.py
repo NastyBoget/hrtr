@@ -22,7 +22,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def val_loop(data_loader, model, tokenizers, logger):
     logger.info("Validation")
-    final_predictions = {k: {'cer': [], 'true': [], 'pred': []} for k in tokenizers.keys()}
+    final_predictions = {k: {'true': [], 'pred': []} for k in tokenizers.keys()}
 
     for data in data_loader:
         text_preds = predict(data['image'], data['image_mask'], model, tokenizers)
@@ -35,7 +35,7 @@ def val_loop(data_loader, model, tokenizers, logger):
     accs = []
     for tokenizer_name, final_preds in final_predictions.items():
         df = pd.DataFrame(final_preds)
-        df["cer"] = df.apply(levenshtein_distance, )
+        df["cer"] = df.apply(lambda x: levenshtein_distance(x["pred"], x["true"]), axis=1)
         cer_value = cer(df["pred"], df["true"])
         wer_value = wer(df["pred"], df["true"])
         accuracy_value = string_accuracy(df["pred"], df["true"])
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)
-    parser.add_argument('--out_dir', help='Where to store models', required=True)
+    parser.add_argument('--out_dir', help='Where to store models', default="transformer")
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
     parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
@@ -233,4 +233,7 @@ if __name__ == '__main__':
     if opt.eval_mode:
         run_eval(opt, logger)
     else:
+        start_time = time.time()
         run_train(opt, logger)
+        elapsed_time = (time.time() - start_time) / 60
+        logger.info(f"Overall elapsed time: {elapsed_time:.3f} min")

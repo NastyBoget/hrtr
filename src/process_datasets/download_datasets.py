@@ -22,7 +22,8 @@ def get_processors_list(logger: logging.Logger) -> List[AbstractDatasetProcessor
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--datasets_list', nargs='+', required=True, help='List of datasets names, options: '
-                                                                                '[hkr, cyrillic, synthetic, gan, stackmix]')
+                                                                                'hkr, cyrillic, synthetic_[hkr|cyrillic], '
+                                                                                'gan_[hkr|cyrillic], stackmix_[hkr|cyrillic]')
     parser.add_argument('--out_dir', type=str, help='Directory for saving dataset', required=True)
     parser.add_argument('--log_dir', type=str, help='Directory for saving log file', required=True)
     parser.add_argument('--log_name', type=str, help='Name of the log file', required=True)

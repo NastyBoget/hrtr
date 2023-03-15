@@ -25,6 +25,7 @@ from src.dataset.attention_dataset import AttentionDataset
 from src.dataset.transforms import transforms
 from src.dataset.utils import get_charset
 from src.utils.logger import get_logger
+from src.utils.metrics import string_accuracy, cer, wer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -213,4 +214,8 @@ if __name__ == '__main__':
 
     cudnn.benchmark = True
     cudnn.deterministic = True
+
+    start_time = time.time()
     train(opt, logger)
+    elapsed_time = (time.time() - start_time) / 60.
+    logger.info(f"Overall elapsed time: {elapsed_time:.3f} min")

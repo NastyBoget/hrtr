@@ -1,13 +1,5 @@
 # Handwritten Russian text recognition
 
-## TODO
-
-- [ ] try [StackMix](https://github.com/ai-forever/StackMix-OCR)
-- [ ] try [ScrabbleGAN](https://github.com/ai-forever/ScrabbleGAN)
-- [ ] unify different models
-- [ ] train on binarized data (optional)
-- [ ] train on several datasets (optional)
-
 ## Datasets
 
 | Name                                                                                                          | Size                                          |
