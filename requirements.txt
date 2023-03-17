@@ -2,6 +2,7 @@ albumentations==1.3.0
 beautifulsoup4==4.11.1
 bezier==2021.2.12
 augmixations==0.1.2
+datasets==2.10.1
 einops==0.6.0
 filetype==1.2.0
 nltk==3.6.7
