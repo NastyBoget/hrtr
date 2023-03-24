@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
-    parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
+    parser.add_argument('--batch_size', type=int, default=32, help='Input batch size')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
     parser.add_argument('--eval_stage', type=str, default='test', help='Name of test dataset stage')
 
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     utils.seed_everything(opt.manual_seed)
 
     ctc_labeling = CTCLabeling(charset)
-    test_dataset = CTCDataset(df[df.stage == opt.eval_stage], opt.data_dir, ctc_labeling)
+    test_dataset = CTCDataset([df[df.stage == opt.eval_stage]], opt.data_dir, ctc_labeling)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, collate_fn=kw_collate_fn, pin_memory=True)
 
     model = get_ocr_model({'time_feature_count': 256, 'lstm_hidden': 256, 'lstm_len': 3, 'n_class': len(charset) + 1}, pretrained=False)

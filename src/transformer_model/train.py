@@ -47,7 +47,7 @@ def val_loop(data_loader, model, tokenizers, logger):
         cers.append(cer_value)
         wers.append(wer_value)
         accs.append(accuracy_value)
-    return min(cers), min(wers), min(accs)
+    return min(cers), min(wers), max(accs)
 
 
 def train_loop(data_loader, model, criterion_ctc, criterion_transformer, optimizer):
@@ -200,7 +200,7 @@ def run_eval(opt, logger):
     model.load_state_dict(cp["attention_model"])
     del cp
 
-    val_dataset = TransformerDataset(val_df, opt.data_dir, tokenizers)
+    val_dataset = TransformerDataset([val_df], opt.data_dir, tokenizers)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=opt.batch_size, collate_fn=collate_fn, pin_memory=True)
 
     cer_avg, wer_avg, acc_avg = val_loop(val_loader, model, tokenizers, logger)
@@ -216,8 +216,8 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
     parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
-    parser.add_argument('--batch_size', type=int, default=64, help='Input batch size')
-    parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
+    parser.add_argument('--batch_size', type=int, default=8, help='Input batch size')
+    parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--saved_model', type=str, default='', help="Path to model to load")
     parser.add_argument('--patience', type=int, default=10, help='Patience for the early stopping')
     parser.add_argument('--eval_mode', action='store_true', help='Evaluation mode')

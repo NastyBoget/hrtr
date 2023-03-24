@@ -186,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, help='Path to the dataset', required=True)
     parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--manual_seed', type=int, default=1111, help='For random seed setting')
-    parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
+    parser.add_argument('--batch_size', type=int, default=128, help='Input batch size')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--saved_model', type=str, default='', help="Path to attention_model to continue training")
     parser.add_argument('--ft', action='store_true', help='Whether to do fine-tuning')

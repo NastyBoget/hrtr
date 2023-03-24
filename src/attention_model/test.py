@@ -85,7 +85,7 @@ def test(opt: Any, logger: logging.Logger) -> None:
     converter = AttnLabelConverter(opt.character)
     align_collate = AlignCollate(img_h=opt.img_h, img_w=opt.img_w, keep_ratio_with_pad=opt.pad)
     opt.num_class = len(converter.character)
-    test_dataset = AttentionDataset(test_df, opt.data_dir, opt)
+    test_dataset = AttentionDataset([test_df], opt.data_dir, opt)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, collate_fn=align_collate, pin_memory=True)
 
     model = Model(opt, logger)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--label_files', nargs='+', required=True, help='Names of files with labels')
     parser.add_argument('--saved_model', type=str, help='Path to attention_model to evaluate', required=True)
     parser.add_argument('--write_errors', action='store_true', help='Write attention_model\'s errors to the log file')
-    parser.add_argument('--batch_size', type=int, default=192, help='Input batch size')
+    parser.add_argument('--batch_size', type=int, default=128, help='Input batch size')
     parser.add_argument('--eval_stage', type=str, default='test', help='Name of test dataset stage')
 
     # Data processing
