@@ -175,7 +175,6 @@ def train(opt: Any, logger: logging.Logger) -> None:
             if loss_increase_num > opt.patience:
                 logger.info("Stop training (loss doesn't decrease)")
                 break
-        epoch += 1
 
 
 if __name__ == '__main__':
